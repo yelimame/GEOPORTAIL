@@ -1,0 +1,6024 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Géoportail Maroc</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@9.2.4/ol.css">
+  <script src="https://cdn.jsdelivr.net/npm/ol@9.2.4/dist/ol.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.10.0/proj4.js"></script>
+  <script src="https://unpkg.com/shpjs@4.0.4/dist/shp.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <style>
+/* ============================================================
+   Géoportail Maroc — Feuille de styles principale
+   Thème sombre professionnel, type QGIS Web
+   ============================================================ */
+
+/* ---- Variables CSS ---- */
+:root {
+  --bg-dark:      #1a1a2e;
+  --bg-medium:    #16213e;
+  --bg-panel:     #0f3460;
+  --accent:       #e94560;
+  --accent-hover: #c73652;
+  --text-primary: #e0e0e0;
+  --text-muted:   #8899aa;
+  --border:       #2a3a5c;
+  --border-light: #3a4a6c;
+  --toolbar-h:    48px;
+  --statusbar-h:  28px;
+  --sidebar-w:    280px;
+  --panel-radius: 6px;
+  --transition:   0.2s ease;
+}
+
+/* ---- Reset & base ---- */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  font-size: 13px;
+  color: var(--text-primary);
+  background: var(--bg-dark);
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+}
+
+input, select, textarea {
+  font: inherit;
+  color: var(--text-primary);
+  background: var(--bg-dark);
+  border: 1px solid var(--border-light);
+  border-radius: 3px;
+  padding: 4px 8px;
+  outline: none;
+}
+
+input:focus, select:focus {
+  border-color: var(--accent);
+}
+
+select option {
+  background: var(--bg-dark);
+}
+
+/* ============================================================
+   TOOLBAR
+   ============================================================ */
+#toolbar {
+  height: var(--toolbar-h);
+  background: var(--bg-medium);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  position: relative;
+  z-index: 1000;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+#toolbar-left {
+  display: flex;
+  align-items: center;
+  min-width: 180px;
+}
+
+#logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#app-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: 0.3px;
+}
+
+#toolbar-center {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  justify-content: center;
+}
+
+#toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 250px;
+  justify-content: flex-end;
+}
+
+.tool-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: var(--bg-dark);
+  border: 1px solid var(--border);
+  border-radius: var(--panel-radius);
+  padding: 2px;
+}
+
+.tool-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 8px;
+  border-radius: 4px;
+  color: var(--text-primary);
+  transition: background var(--transition), color var(--transition);
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+.tool-btn:hover {
+  background: var(--bg-panel);
+  color: #fff;
+}
+
+.tool-btn.active {
+  background: var(--accent);
+  color: #fff;
+}
+
+.tool-btn.danger:hover {
+  background: #7a1a2a;
+  color: #ff6b6b;
+}
+
+.toolbar-separator {
+  width: 1px;
+  height: 28px;
+  background: var(--border);
+  margin: 0 4px;
+}
+
+/* Basemap switcher */
+#basemap-switcher {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.basemap-options {
+  display: flex;
+  gap: 2px;
+  background: var(--bg-dark);
+  border: 1px solid var(--border);
+  border-radius: var(--panel-radius);
+  padding: 2px;
+}
+
+.basemap-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 3px;
+  color: var(--text-muted);
+  font-size: 12px;
+  transition: all var(--transition);
+}
+
+.basemap-btn:hover {
+  background: var(--bg-panel);
+  color: var(--text-primary);
+}
+
+.basemap-btn.active {
+  background: var(--bg-panel);
+  color: var(--text-primary);
+  border: 1px solid var(--accent);
+}
+
+/* Projection selector */
+#projection-selector {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+#projection-selector select {
+  font-size: 12px;
+  padding: 3px 6px;
+}
+
+.switch-label {
+  color: var(--text-muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+#btn-toggle-sidebar {
+  padding: 5px;
+  border-radius: 4px;
+  color: var(--text-muted);
+  transition: all var(--transition);
+}
+
+#btn-toggle-sidebar:hover {
+  background: var(--bg-panel);
+  color: var(--text-primary);
+}
+
+/* ============================================================
+   LAYOUT PRINCIPAL
+   ============================================================ */
+#main-container {
+  display: flex;
+  height: calc(100vh - var(--toolbar-h) - var(--statusbar-h));
+  overflow: hidden;
+}
+
+/* ============================================================
+   SIDEBAR GAUCHE
+   ============================================================ */
+#sidebar {
+  width: var(--sidebar-w);
+  background: var(--bg-medium);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  transition: width var(--transition), transform var(--transition);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+#sidebar.closed {
+  width: 0;
+  transform: translateX(-100%);
+}
+
+#sidebar-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.tab-btn {
+  flex: 1;
+  padding: 8px 4px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 12px;
+  border-bottom: 2px solid transparent;
+  transition: all var(--transition);
+}
+
+.tab-btn:hover {
+  color: var(--text-primary);
+  background: var(--bg-dark);
+}
+
+.tab-btn.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+  background: var(--bg-dark);
+}
+
+.tab-content {
+  display: none;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+}
+
+.tab-content.active {
+  display: flex;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  background: var(--bg-dark);
+  flex-shrink: 0;
+}
+
+.panel-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.icon-btn {
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 11px;
+  color: var(--text-muted);
+  background: var(--bg-panel);
+  transition: all var(--transition);
+}
+
+.icon-btn:hover {
+  color: var(--text-primary);
+  background: var(--border-light);
+}
+
+.icon-btn.danger:hover {
+  color: #ff6b6b;
+  background: #4a1520;
+}
+
+#layers-list,
+#points-list,
+#history-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 6px;
+}
+
+.empty-state {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 20px 10px;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+/* Items liste couches */
+.layer-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  background: var(--bg-dark);
+  margin-bottom: 4px;
+  border: 1px solid var(--border);
+  transition: border-color var(--transition);
+}
+
+.layer-item:hover {
+  border-color: var(--border-light);
+}
+
+.layer-visibility {
+  cursor: pointer;
+  width: 16px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.layer-visibility.visible { color: #4caf50; }
+
+.layer-name {
+  flex: 1;
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.layer-type-badge {
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: 2px;
+  background: var(--bg-panel);
+  color: var(--text-muted);
+}
+
+/* Items liste points */
+.point-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  background: var(--bg-dark);
+  margin-bottom: 4px;
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.point-item:hover {
+  border-color: var(--accent);
+}
+
+.point-item.selected {
+  border-color: var(--accent);
+  background: rgba(233, 69, 96, 0.1);
+}
+
+.point-color-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.point-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.point-name {
+  font-size: 12px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.point-coords-mini {
+  font-size: 10px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.point-actions {
+  display: flex;
+  gap: 2px;
+}
+
+/* Items historique conversion */
+.history-item {
+  padding: 6px 8px;
+  border-radius: 4px;
+  background: var(--bg-dark);
+  margin-bottom: 4px;
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: border-color var(--transition);
+}
+
+.history-item:hover {
+  border-color: var(--accent);
+}
+
+.history-coords {
+  font-size: 11px;
+  color: var(--text-primary);
+}
+
+.history-time {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* ============================================================
+   CARTE
+   ============================================================ */
+#map-wrapper {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+#map {
+  width: 100%;
+  height: 100%;
+}
+
+/* OpenLayers overrides */
+.ol-zoom {
+  top: 10px;
+  left: 10px;
+}
+
+.ol-zoom button,
+.ol-rotate button,
+.ol-full-screen button {
+  background: var(--bg-medium) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border) !important;
+  font-size: 16px !important;
+  width: 30px !important;
+  height: 30px !important;
+  line-height: 30px !important;
+}
+
+.ol-zoom button:hover,
+.ol-rotate button:hover,
+.ol-full-screen button:hover {
+  background: var(--bg-panel) !important;
+}
+
+.ol-scale-line {
+  background: rgba(26, 26, 46, 0.8) !important;
+  border-radius: 3px !important;
+  bottom: 6px;
+  right: 10px;
+  left: auto;
+}
+
+.ol-scale-line-inner {
+  border: 1px solid var(--text-muted) !important;
+  border-top: none !important;
+  color: var(--text-primary) !important;
+  font-size: 11px !important;
+}
+
+.ol-rotate {
+  top: 100px;
+  right: 10px;
+}
+
+.ol-full-screen {
+  top: 10px;
+  right: 10px;
+}
+
+/* Popup carte */
+.ol-popup {
+  position: absolute;
+  background: var(--bg-medium);
+  border: 1px solid var(--border-light);
+  border-radius: var(--panel-radius);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+  padding: 14px;
+  min-width: 240px;
+  max-width: 320px;
+  transform: translate(-50%, -110%);
+  z-index: 100;
+  display: none;
+}
+
+.ol-popup.visible {
+  display: block;
+}
+
+.ol-popup::after {
+  content: '';
+  position: absolute;
+  bottom: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: var(--border-light);
+}
+
+.ol-popup-closer {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  font-size: 14px;
+  color: var(--text-muted);
+  padding: 2px 4px;
+}
+
+.ol-popup-closer:hover {
+  color: var(--accent);
+}
+
+#popup-content h4 {
+  font-size: 13px;
+  color: var(--accent);
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 6px;
+}
+
+.popup-coord-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 3px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  font-size: 11px;
+}
+
+.popup-coord-label {
+  color: var(--text-muted);
+  flex: 1;
+}
+
+.popup-coord-value {
+  color: var(--text-primary);
+  font-family: monospace;
+  font-size: 11px;
+}
+
+.popup-copy-btn {
+  padding: 1px 4px;
+  margin-left: 4px;
+  font-size: 10px;
+  color: var(--text-muted);
+  background: var(--bg-dark);
+  border-radius: 2px;
+}
+
+.popup-copy-btn:hover {
+  color: var(--accent);
+}
+
+.popup-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.popup-actions button {
+  flex: 1;
+  padding: 5px;
+  border-radius: 3px;
+  font-size: 11px;
+  text-align: center;
+}
+
+.btn-primary-sm {
+  background: var(--accent);
+  color: #fff;
+}
+
+.btn-primary-sm:hover {
+  background: var(--accent-hover);
+}
+
+.btn-secondary-sm {
+  background: var(--bg-panel);
+  color: var(--text-primary);
+}
+
+.btn-secondary-sm:hover {
+  background: var(--border-light);
+}
+
+/* Tooltip de mesure */
+.measure-tooltip {
+  position: absolute;
+  background: rgba(26, 26, 46, 0.9);
+  border: 1px solid var(--accent);
+  border-radius: 3px;
+  padding: 4px 8px;
+  font-size: 12px;
+  color: var(--text-primary);
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 200;
+  transform: translate(10px, -50%);
+}
+
+.measure-tooltip.hidden { display: none; }
+
+/* ============================================================
+   PANEL FLOTTANT CONTEXTUEL (droite)
+   ============================================================ */
+#floating-panel {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 300px;
+  background: var(--bg-medium);
+  border: 1px solid var(--border-light);
+  border-radius: var(--panel-radius);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+  z-index: 500;
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100% - 20px);
+}
+
+#floating-panel.hidden { display: none; }
+
+#floating-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border);
+  border-radius: var(--panel-radius) var(--panel-radius) 0 0;
+}
+
+#floating-panel-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+#floating-panel-content {
+  padding: 12px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+/* ============================================================
+   FORMULAIRES DANS LES PANELS
+   ============================================================ */
+.form-section {
+  margin-bottom: 14px;
+}
+
+.form-section label {
+  display: block;
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.form-section input,
+.form-section select {
+  width: 100%;
+}
+
+.form-row {
+  margin-bottom: 10px;
+}
+
+.form-row label {
+  display: block;
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.form-row input,
+.form-row select {
+  width: 100%;
+}
+
+.form-row-inline {
+  display: flex;
+  gap: 6px;
+  align-items: flex-end;
+  margin-bottom: 10px;
+}
+
+.form-row-inline .form-row {
+  flex: 1;
+  margin-bottom: 0;
+}
+
+.btn-primary {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  background: var(--accent);
+  color: #fff;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+  transition: background var(--transition);
+  margin-top: 8px;
+}
+
+.btn-primary:hover {
+  background: var(--accent-hover);
+}
+
+.btn-secondary {
+  display: block;
+  width: 100%;
+  padding: 7px 12px;
+  background: var(--bg-panel);
+  color: var(--text-primary);
+  border-radius: 4px;
+  font-size: 13px;
+  border: 1px solid var(--border-light);
+  text-align: center;
+  transition: all var(--transition);
+}
+
+.btn-secondary:hover {
+  background: var(--border-light);
+}
+
+.input-group {
+  display: flex;
+  gap: 4px;
+}
+
+.input-group input {
+  flex: 1;
+}
+
+.input-group button {
+  padding: 4px 8px;
+  background: var(--bg-panel);
+  border-radius: 3px;
+  color: var(--text-muted);
+  font-size: 11px;
+  transition: all var(--transition);
+}
+
+.input-group button:hover {
+  background: var(--accent);
+  color: #fff;
+}
+
+/* ============================================================
+   PANEL NAVIGATION "ALLER À UN POINT"
+   ============================================================ */
+.nav-dms-fields {
+  display: none;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.nav-dms-fields.visible { display: grid; }
+
+.dms-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  text-align: center;
+  margin-bottom: 2px;
+}
+
+/* ============================================================
+   PANEL CONVERSION DE COORDONNÉES
+   ============================================================ */
+.conv-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+  margin-bottom: 10px;
+}
+
+.conv-table th {
+  background: var(--bg-dark);
+  color: var(--text-muted);
+  padding: 5px 6px;
+  text-align: left;
+  font-weight: 600;
+  border-bottom: 1px solid var(--border);
+}
+
+.conv-table td {
+  padding: 5px 6px;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  vertical-align: middle;
+}
+
+.conv-table tr:hover td {
+  background: rgba(255,255,255,0.03);
+}
+
+.conv-value {
+  font-family: monospace;
+  color: var(--text-primary);
+}
+
+.conv-copy-btn {
+  padding: 2px 5px;
+  background: var(--bg-panel);
+  border-radius: 2px;
+  font-size: 10px;
+  color: var(--text-muted);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.conv-copy-btn:hover {
+  color: var(--accent);
+}
+
+.conv-input-section {
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* ============================================================
+   PANEL CALCULS
+   ============================================================ */
+.calc-result-box {
+  background: var(--bg-dark);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 10px;
+  margin-bottom: 8px;
+}
+
+.calc-result-box .calc-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.calc-result-box .calc-value {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.calc-result-box .calc-sub {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* ============================================================
+   STATUSBAR
+   ============================================================ */
+#statusbar {
+  height: var(--statusbar-h);
+  background: var(--bg-medium);
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  font-size: 11px;
+  color: var(--text-muted);
+  gap: 10px;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+#status-coords {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+}
+
+#status-center {
+  text-align: center;
+  color: var(--accent);
+  font-size: 11px;
+}
+
+#status-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.status-label {
+  color: var(--text-muted);
+}
+
+.status-sep {
+  color: var(--border-light);
+}
+
+#coord-wgs84, #coord-zone {
+  color: var(--text-primary);
+  font-family: monospace;
+}
+
+/* ============================================================
+   MODALS
+   ============================================================ */
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal.hidden { display: none; }
+
+.modal-dialog {
+  background: var(--bg-medium);
+  border: 1px solid var(--border-light);
+  border-radius: var(--panel-radius);
+  width: 520px;
+  max-width: 95vw;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.7);
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border);
+  border-radius: var(--panel-radius) var(--panel-radius) 0 0;
+}
+
+.modal-header h2 {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.modal-close {
+  padding: 3px 7px;
+  border-radius: 3px;
+  color: var(--text-muted);
+  font-size: 14px;
+  transition: all var(--transition);
+}
+
+.modal-close:hover {
+  color: var(--accent);
+  background: rgba(233,69,96,0.1);
+}
+
+.modal-body {
+  padding: 16px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+/* Drop zone import */
+#drop-zone {
+  border: 2px dashed var(--border-light);
+  border-radius: var(--panel-radius);
+  padding: 30px;
+  text-align: center;
+  transition: all var(--transition);
+  cursor: pointer;
+}
+
+#drop-zone.dragover {
+  border-color: var(--accent);
+  background: rgba(233, 69, 96, 0.05);
+}
+
+#drop-zone .drop-icon {
+  margin-bottom: 12px;
+}
+
+#drop-zone p {
+  color: var(--text-primary);
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+
+#drop-zone .hint {
+  color: var(--text-muted);
+  font-size: 11px;
+  margin-bottom: 14px;
+}
+
+#drop-zone #btn-browse {
+  width: auto;
+  display: inline-block;
+  padding: 7px 20px;
+}
+
+/* Radio et checkboxes */
+.radio-group, .checkbox-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px 0;
+}
+
+.radio-row, .checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  color: var(--text-primary);
+  cursor: pointer;
+  padding: 3px 6px;
+  border-radius: 3px;
+  transition: background var(--transition);
+}
+
+.radio-row:hover, .checkbox-row:hover {
+  background: var(--bg-dark);
+}
+
+.radio-row input, .checkbox-row input {
+  accent-color: var(--accent);
+  width: auto;
+  padding: 0;
+  border: none;
+}
+
+/* Barre de progression */
+.progress-bar {
+  width: 100%;
+  height: 6px;
+  background: var(--bg-dark);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+  width: 0%;
+}
+
+#import-status-text {
+  color: var(--text-muted);
+  font-size: 12px;
+  text-align: center;
+}
+
+/* ============================================================
+   TOAST NOTIFICATIONS
+   ============================================================ */
+#toast-container {
+  position: fixed;
+  bottom: 40px;
+  right: 14px;
+  z-index: 3000;
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 8px;
+}
+
+.toast {
+  background: var(--bg-medium);
+  border: 1px solid var(--border-light);
+  border-radius: var(--panel-radius);
+  padding: 10px 14px;
+  font-size: 12px;
+  color: var(--text-primary);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+  max-width: 300px;
+  animation: toast-in 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.toast.success { border-left: 3px solid #4caf50; }
+.toast.error   { border-left: 3px solid var(--accent); }
+.toast.info    { border-left: 3px solid #2196f3; }
+.toast.warning { border-left: 3px solid #ff9800; }
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateX(20px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+/* ============================================================
+   SCROLLBAR STYLE
+   ============================================================ */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-dark); }
+::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+/* ============================================================
+   ÉDITION INLINE POINT (popup)
+   ============================================================ */
+.popup-edit-name {
+  width: 100%;
+  margin-bottom: 8px;
+  background: var(--bg-dark);
+}
+
+.color-picker-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.color-swatch {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: border-color var(--transition);
+  flex-shrink: 0;
+}
+
+.color-swatch:hover, .color-swatch.selected {
+  border-color: #fff;
+}
+
+/* ============================================================
+   DESSIN — styles OL
+   ============================================================ */
+.ol-draw-tooltip {
+  background: rgba(26,26,46,0.85);
+  border: 1px solid var(--accent);
+  border-radius: 3px;
+  padding: 2px 7px;
+  font-size: 11px;
+  color: #fff;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+/* ============================================================
+   LISTE EXPORT
+   ============================================================ */
+#export-layers-list {
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 6px;
+  background: var(--bg-dark);
+}
+
+/* ============================================================
+   RÉSULTATS DES GÉOMÉTRIES DESSINÉES
+   ============================================================ */
+.draw-info-box {
+  background: rgba(233, 69, 96, 0.08);
+  border: 1px solid rgba(233, 69, 96, 0.3);
+  border-radius: 4px;
+  padding: 8px 10px;
+  margin-top: 8px;
+  font-size: 12px;
+}
+
+.draw-info-box .di-label {
+  color: var(--text-muted);
+  margin-bottom: 3px;
+}
+
+.draw-info-box .di-value {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+/* ============================================================
+   RESPONSIVE (tablette ≥ 768px)
+   ============================================================ */
+@media (max-width: 900px) {
+  #toolbar-center .tool-btn { padding: 4px 6px; font-size: 11px; }
+  #sidebar { width: 240px; }
+  :root { --sidebar-w: 240px; }
+}
+
+@media (max-width: 768px) {
+  #sidebar { position: absolute; left: 0; top: 0; height: 100%; z-index: 400; }
+  #floating-panel { width: 260px; }
+  #app-title { display: none; }
+}
+
+  </style>
+</head>
+<body>
+
+  <!-- TOOLBAR -->
+  <header id="toolbar">
+    <div id="toolbar-left">
+      <div id="logo">
+        <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+          <circle cx="14" cy="14" r="13" stroke="#e94560" stroke-width="2"/>
+          <path d="M7 14 Q14 6 21 14 Q14 22 7 14Z" fill="#e94560" opacity="0.7"/>
+          <circle cx="14" cy="14" r="3" fill="#fff"/>
+        </svg>
+        <span id="app-title">Géoportail Maroc</span>
+      </div>
+    </div>
+    <div id="toolbar-center">
+      <div class="tool-group">
+        <button class="tool-btn" id="btn-select" title="Sélection" data-tool="select">
+          <svg width="16" height="16" viewBox="0 0 16 16"><path d="M2 2l8 12 2-5 5-2z" fill="currentColor"/></svg>
+        </button>
+        <button class="tool-btn" id="btn-point" title="Ajouter un point" data-tool="point">
+          <svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="4" fill="currentColor"/><circle cx="8" cy="8" r="2" fill="#1a1a2e"/></svg>
+        </button>
+        <button class="tool-btn" id="btn-line" title="Tracer une polyligne" data-tool="line">
+          <svg width="16" height="16" viewBox="0 0 16 16"><polyline points="2,14 6,4 10,10 14,2" stroke="currentColor" stroke-width="2" fill="none"/></svg>
+        </button>
+        <button class="tool-btn" id="btn-polygon" title="Tracer un polygone" data-tool="polygon">
+          <svg width="16" height="16" viewBox="0 0 16 16"><polygon points="8,2 14,6 12,14 4,14 2,6" stroke="currentColor" stroke-width="2" fill="none"/></svg>
+        </button>
+        <button class="tool-btn" id="btn-rectangle" title="Tracer un rectangle" data-tool="rectangle">
+          <svg width="16" height="16" viewBox="0 0 16 16"><rect x="2" y="4" width="12" height="8" stroke="currentColor" stroke-width="2" fill="none"/></svg>
+        </button>
+        <button class="tool-btn" id="btn-circle" title="Tracer un cercle" data-tool="circle">
+          <svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="2" fill="none"/></svg>
+        </button>
+        <button class="tool-btn" id="btn-modify" title="Modifier géométrie" data-tool="modify">
+          <svg width="16" height="16" viewBox="0 0 16 16"><path d="M2 12L10 4l2 2L4 14z" fill="currentColor"/><circle cx="11" cy="5" r="2" fill="#e94560"/></svg>
+        </button>
+        <button class="tool-btn" id="btn-measure-dist" title="Mesurer distance" data-tool="measure-dist">
+          <svg width="16" height="16" viewBox="0 0 16 16"><line x1="2" y1="8" x2="14" y2="8" stroke="currentColor" stroke-width="2"/><line x1="2" y1="5" x2="2" y2="11" stroke="currentColor" stroke-width="2"/><line x1="14" y1="5" x2="14" y2="11" stroke="currentColor" stroke-width="2"/></svg>
+        </button>
+        <button class="tool-btn danger" id="btn-clear-draw" title="Effacer tout le dessin">
+          <svg width="16" height="16" viewBox="0 0 16 16"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="2"/></svg>
+        </button>
+      </div>
+      <div class="toolbar-separator"></div>
+      <div class="tool-group">
+        <button class="tool-btn" id="btn-import" title="Importer un fichier">
+          <svg width="16" height="16" viewBox="0 0 16 16"><path d="M8 2v8M5 7l3 3 3-3M2 12v2h12v-2" stroke="currentColor" stroke-width="2" fill="none"/></svg>
+          Import
+        </button>
+        <button class="tool-btn" id="btn-export" title="Exporter des données">
+          <svg width="16" height="16" viewBox="0 0 16 16"><path d="M8 10V2M5 5l3-3 3 3M2 12v2h12v-2" stroke="currentColor" stroke-width="2" fill="none"/></svg>
+          Export
+        </button>
+      </div>
+      <div class="toolbar-separator"></div>
+      <div class="tool-group">
+        <button class="tool-btn" id="btn-goto" title="Aller à un point">
+          <svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="7" r="4" stroke="currentColor" stroke-width="2" fill="none"/><line x1="8" y1="11" x2="8" y2="15" stroke="currentColor" stroke-width="2"/></svg>
+          Localiser
+        </button>
+        <button class="tool-btn" id="btn-converter" title="Convertir coordonnées">
+          <svg width="16" height="16" viewBox="0 0 16 16"><path d="M2 8h12M10 5l4 3-4 3M6 5L2 8l4 3" stroke="currentColor" stroke-width="2" fill="none"/></svg>
+          Convertir
+        </button>
+      </div>
+    </div>
+    <div id="toolbar-right">
+      <div id="basemap-switcher">
+        <label class="switch-label">Fond :</label>
+        <div class="basemap-options">
+          <button class="basemap-btn active" data-basemap="satellite">Satellite</button>
+          <button class="basemap-btn" data-basemap="osm">OSM</button>
+          <button class="basemap-btn" data-basemap="none">Aucun</button>
+        </div>
+      </div>
+      <div id="projection-selector">
+        <label class="switch-label">Zone :</label>
+        <select id="select-zone">
+          <option value="EPSG:4326">WGS84</option>
+          <option value="EPSG:26191">Merchich Z1</option>
+          <option value="EPSG:26192" selected>Merchich Z2</option>
+          <option value="EPSG:26193">Merchich Z3</option>
+          <option value="EPSG:26194">Merchich Z4</option>
+        </select>
+      </div>
+      <button id="btn-toggle-sidebar" title="Afficher/Masquer le panneau">
+        <svg width="18" height="18" viewBox="0 0 18 18"><rect x="2" y="4" width="14" height="2" fill="currentColor"/><rect x="2" y="8" width="14" height="2" fill="currentColor"/><rect x="2" y="12" width="14" height="2" fill="currentColor"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- CONTENEUR PRINCIPAL -->
+  <div id="main-container">
+    <aside id="sidebar" class="open">
+      <div id="sidebar-tabs">
+        <button class="tab-btn active" data-tab="layers">Couches</button>
+        <button class="tab-btn" data-tab="points">Points</button>
+        <button class="tab-btn" data-tab="history">Historique</button>
+      </div>
+      <div id="tab-layers" class="tab-content active">
+        <div class="panel-header">
+          <span>Couches importées</span>
+          <button id="btn-clear-layers" class="icon-btn danger" title="Supprimer toutes les couches">✕</button>
+        </div>
+        <div id="layers-list"><div class="empty-state">Aucune couche importée</div></div>
+      </div>
+      <div id="tab-points" class="tab-content">
+        <div class="panel-header">
+          <span>Points marqués</span>
+          <div class="panel-actions">
+            <button id="btn-export-points-csv" class="icon-btn" title="Exporter CSV">CSV</button>
+            <button id="btn-export-points-geojson" class="icon-btn" title="Exporter GeoJSON">GeoJSON</button>
+            <button id="btn-clear-points" class="icon-btn danger" title="Supprimer tous les points">✕</button>
+          </div>
+        </div>
+        <div id="points-list"><div class="empty-state">Aucun point marqué.<br>Utilisez l'outil Point (●) pour en ajouter.</div></div>
+      </div>
+      <div id="tab-history" class="tab-content">
+        <div class="panel-header">
+          <span>Historique conversions</span>
+          <button id="btn-clear-history" class="icon-btn danger" title="Vider l'historique">✕</button>
+        </div>
+        <div id="history-list"><div class="empty-state">Aucune conversion enregistrée</div></div>
+      </div>
+    </aside>
+
+    <div id="map-wrapper">
+      <div id="map"></div>
+      <div id="floating-panel" class="hidden">
+        <div id="floating-panel-header">
+          <span id="floating-panel-title">Panneau</span>
+          <button id="btn-close-panel" class="icon-btn">✕</button>
+        </div>
+        <div id="floating-panel-content"></div>
+      </div>
+      <div id="map-popup" class="ol-popup">
+        <button id="popup-closer" class="ol-popup-closer">✕</button>
+        <div id="popup-content"></div>
+      </div>
+      <div id="measure-tooltip" class="measure-tooltip hidden"></div>
+    </div>
+  </div>
+
+  <!-- STATUSBAR -->
+  <footer id="statusbar">
+    <div id="status-coords">
+      <span class="status-label">WGS84 :</span>
+      <span id="coord-wgs84">— , —</span>
+      <span class="status-sep">|</span>
+      <span class="status-label" id="coord-zone-label">Merchich Z2 :</span>
+      <span id="coord-zone">— , —</span>
+    </div>
+    <div id="status-center"><span id="status-tool">Outil : Sélection</span></div>
+    <div id="status-right">
+      <span class="status-label">Zoom :</span>
+      <span id="status-zoom">—</span>
+      <span class="status-sep">|</span>
+      <span class="status-label">Échelle :</span>
+      <span id="status-scale">—</span>
+    </div>
+  </footer>
+
+  <!-- MODAL IMPORT -->
+  <div id="modal-import" class="modal hidden">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h2>Importer des données</h2>
+        <button class="modal-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <div id="drop-zone">
+          <div class="drop-icon">
+            <svg width="48" height="48" viewBox="0 0 48 48"><path d="M24 8v24M16 20l8-12 8 12M8 36v4h32v-4" stroke="#e94560" stroke-width="3" fill="none" stroke-linecap="round"/></svg>
+          </div>
+          <p>Glissez-déposez vos fichiers ici</p>
+          <p class="hint">Formats supportés : SHP (ZIP), DXF, GeoJSON, KML, CSV</p>
+          <button id="btn-browse" class="btn-primary">Parcourir...</button>
+          <input type="file" id="file-input" multiple accept=".zip,.shp,.dxf,.geojson,.json,.kml,.csv" style="display:none">
+        </div>
+        <div id="import-options" class="hidden">
+          <h3>Options d'import</h3>
+          <div class="form-row">
+            <label>Projection source :</label>
+            <select id="import-projection">
+              <option value="auto">Détection automatique</option>
+              <option value="EPSG:4326">WGS84 (EPSG:4326)</option>
+              <option value="EPSG:3857">Web Mercator (EPSG:3857)</option>
+              <option value="EPSG:26191">Merchich Zone 1</option>
+              <option value="EPSG:26192">Merchich Zone 2</option>
+              <option value="EPSG:26193">Merchich Zone 3</option>
+              <option value="EPSG:26194">Merchich Zone 4</option>
+            </select>
+          </div>
+          <div id="import-file-list"></div>
+          <button id="btn-do-import" class="btn-primary">Importer</button>
+        </div>
+        <div id="import-progress" class="hidden">
+          <div class="progress-bar"><div class="progress-fill" id="import-progress-fill"></div></div>
+          <p id="import-status-text">Chargement...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL EXPORT -->
+  <div id="modal-export" class="modal hidden">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h2>Exporter des données</h2>
+        <button class="modal-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-row">
+          <label>Couches à exporter :</label>
+          <div id="export-layers-list">
+            <label class="checkbox-row"><input type="checkbox" id="export-drawn" checked> Géométries dessinées</label>
+            <label class="checkbox-row"><input type="checkbox" id="export-markers" checked> Points marqués</label>
+            <div id="export-imported-layers"></div>
+          </div>
+        </div>
+        <div class="form-row">
+          <label>Format :</label>
+          <div class="radio-group">
+            <label class="radio-row"><input type="radio" name="export-format" value="geojson" checked> GeoJSON</label>
+            <label class="radio-row"><input type="radio" name="export-format" value="kml"> KML</label>
+            <label class="radio-row"><input type="radio" name="export-format" value="csv"> CSV</label>
+            <label class="radio-row"><input type="radio" name="export-format" value="dxf"> DXF</label>
+            <label class="radio-row"><input type="radio" name="export-format" value="shp"> Shapefile (ZIP)</label>
+          </div>
+        </div>
+        <div class="form-row">
+          <label>Projection de sortie :</label>
+          <select id="export-projection">
+            <option value="EPSG:4326">WGS84</option>
+            <option value="EPSG:26191">Merchich Zone 1</option>
+            <option value="EPSG:26192">Merchich Zone 2</option>
+            <option value="EPSG:26193">Merchich Zone 3</option>
+            <option value="EPSG:26194">Merchich Zone 4</option>
+          </select>
+        </div>
+        <button id="btn-do-export" class="btn-primary">Télécharger</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast-container"></div>
+
+  <script>
+/* ===== projections.js ===== */
+/**
+ * projections.js — Définitions proj4 et fonctions de conversion géodésique
+ * Géoportail Maroc
+ *
+ * Contient les définitions complètes des projections Merchich (EPSG:26191-26194)
+ * et WGS84, ainsi que toutes les fonctions de conversion inter-projections.
+ */
+
+// ============================================================
+// Enregistrement des définitions proj4
+// ============================================================
+
+/** Projection WGS84 géographique (EPSG:4326) */
+proj4.defs("EPSG:4326", "+proj=longlat +datum=WGS84 +no_defs");
+
+/** Web Mercator (EPSG:3857) — projection interne OpenLayers */
+proj4.defs("EPSG:3857", "+proj=merc +a=6378137 +b=6378137 +lat_ts=0 +lon_0=0 +x_0=0 +y_0=0 +k=1 +units=m +nadgrids=@null +wktext +no_defs");
+
+/** Merchich Zone 1 (EPSG:26191) — Nord Maroc (Rif, Tétouan) */
+proj4.defs("EPSG:26191",
+  "+proj=lcc +lat_1=33.3 +lat_0=33.3 +lon_0=-5.4 " +
+  "+k_0=0.999625769 +x_0=500000 +y_0=300000 " +
+  "+a=6378249.2 +b=6356514.999904194 " +
+  "+towgs84=31,-146,47,0,0,0,0 +units=m +no_defs"
+);
+
+/** Merchich Zone 2 (EPSG:26192) — Centre-Nord Maroc (Casablanca, Rabat, Fès) */
+proj4.defs("EPSG:26192",
+  "+proj=lcc +lat_1=29.7 +lat_0=29.7 +lon_0=-5.4 " +
+  "+k_0=0.9996155960 +x_0=500000 +y_0=300000 " +
+  "+a=6378249.2 +b=6356514.999904194 " +
+  "+towgs84=31,-146,47,0,0,0,0 +units=m +no_defs"
+);
+
+/** Merchich Zone 3 (EPSG:26193) — Centre-Sud Maroc (Marrakech, Agadir) */
+proj4.defs("EPSG:26193",
+  "+proj=lcc +lat_1=26.1 +lat_0=26.1 +lon_0=-5.4 " +
+  "+k_0=0.9996 +x_0=1200000 +y_0=400000 " +
+  "+a=6378249.2 +b=6356514.999904194 " +
+  "+towgs84=31,-146,47,0,0,0,0 +units=m +no_defs"
+);
+
+/** Merchich Zone 4 (EPSG:26194) — Sahara marocain */
+proj4.defs("EPSG:26194",
+  "+proj=lcc +lat_1=22.5 +lat_0=22.5 +lon_0=-5.4 " +
+  "+k_0=0.999616304 +x_0=1500000 +y_0=400000 " +
+  "+a=6378249.2 +b=6356514.999904194 " +
+  "+towgs84=31,-146,47,0,0,0,0 +units=m +no_defs"
+);
+
+// Enregistrement dans OpenLayers (si ol/proj/proj4 est chargé)
+if (window.ol && ol.proj && ol.proj.proj4 && ol.proj.proj4.register) {
+  ol.proj.proj4.register(proj4);
+}
+
+// ============================================================
+// Constantes
+// ============================================================
+
+/** Liste des systèmes de projection supportés */
+const PROJECTIONS = {
+  "EPSG:4326":  { label: "WGS84 (DD)",         unit: "°",  isGeographic: true  },
+  "EPSG:26191": { label: "Merchich Zone 1",      unit: "m",  isGeographic: false },
+  "EPSG:26192": { label: "Merchich Zone 2",      unit: "m",  isGeographic: false },
+  "EPSG:26193": { label: "Merchich Zone 3",      unit: "m",  isGeographic: false },
+  "EPSG:26194": { label: "Merchich Zone 4",      unit: "m",  isGeographic: false },
+  "EPSG:3857":  { label: "Web Mercator",         unit: "m",  isGeographic: false },
+};
+
+// ============================================================
+// Fonctions de conversion
+// ============================================================
+
+/**
+ * Convertit des coordonnées d'un système de projection vers un autre.
+ * Utilise exclusivement proj4js — aucune formule approchée.
+ *
+ * @param {number} x - Coordonnée X (longitude ou Est)
+ * @param {number} y - Coordonnée Y (latitude ou Nord)
+ * @param {string} fromEPSG - Code EPSG source (ex: "EPSG:4326")
+ * @param {string} toEPSG   - Code EPSG cible  (ex: "EPSG:26192")
+ * @returns {{ x: number, y: number }} Coordonnées converties
+ */
+function convertCoords(x, y, fromEPSG, toEPSG) {
+  if (fromEPSG === toEPSG) return { x, y };
+  try {
+    const result = proj4(fromEPSG, toEPSG, [x, y]);
+    return { x: result[0], y: result[1] };
+  } catch (err) {
+    console.error(`Erreur conversion ${fromEPSG} → ${toEPSG}:`, err);
+    return { x: NaN, y: NaN };
+  }
+}
+
+/**
+ * Convertit depuis WGS84 decimal vers toutes les projections supportées.
+ *
+ * @param {number} lon - Longitude WGS84 (degrés décimaux, positif=Est)
+ * @param {number} lat - Latitude WGS84 (degrés décimaux, positif=Nord)
+ * @returns {Object} Objet avec toutes les coordonnées converties
+ */
+function convertFromWGS84(lon, lat) {
+  const result = {
+    wgs84: { lon, lat },
+    wgs84dms: {
+      lon: decimalToDMS(lon, true),
+      lat: decimalToDMS(lat, false),
+    },
+    z1: convertCoords(lon, lat, "EPSG:4326", "EPSG:26191"),
+    z2: convertCoords(lon, lat, "EPSG:4326", "EPSG:26192"),
+    z3: convertCoords(lon, lat, "EPSG:4326", "EPSG:26193"),
+    z4: convertCoords(lon, lat, "EPSG:4326", "EPSG:26194"),
+    webMercator: convertCoords(lon, lat, "EPSG:4326", "EPSG:3857"),
+  };
+  return result;
+}
+
+/**
+ * Convertit depuis une projection quelconque vers WGS84 DD.
+ *
+ * @param {number} x      - Coordonnée X (selon projection)
+ * @param {number} y      - Coordonnée Y (selon projection)
+ * @param {string} epsg   - Code EPSG source
+ * @returns {{ lon: number, lat: number }} Coordonnées WGS84
+ */
+function toWGS84(x, y, epsg) {
+  if (epsg === "EPSG:4326") return { lon: x, lat: y };
+  const res = convertCoords(x, y, epsg, "EPSG:4326");
+  return { lon: res.x, lat: res.y };
+}
+
+/**
+ * Convertit depuis Web Mercator (EPSG:3857) vers WGS84 DD.
+ * Utilisé pour traiter les coordonnées de la carte OpenLayers.
+ *
+ * @param {number} mx - X en mètres (Web Mercator)
+ * @param {number} my - Y en mètres (Web Mercator)
+ * @returns {{ lon: number, lat: number }}
+ */
+function mercatorToWGS84(mx, my) {
+  const res = proj4("EPSG:3857", "EPSG:4326", [mx, my]);
+  return { lon: res[0], lat: res[1] };
+}
+
+/**
+ * Convertit WGS84 vers Web Mercator.
+ *
+ * @param {number} lon
+ * @param {number} lat
+ * @returns {{ x: number, y: number }}
+ */
+function wgs84ToMercator(lon, lat) {
+  const res = proj4("EPSG:4326", "EPSG:3857", [lon, lat]);
+  return { x: res[0], y: res[1] };
+}
+
+/**
+ * Convertit depuis Web Mercator vers une projection cible.
+ *
+ * @param {number} mx   - X en mètres Web Mercator
+ * @param {number} my   - Y en mètres Web Mercator
+ * @param {string} epsg - EPSG cible
+ * @returns {{ x: number, y: number }}
+ */
+function mercatorTo(mx, my, epsg) {
+  if (epsg === "EPSG:3857") return { x: mx, y: my };
+  const res = proj4("EPSG:3857", epsg, [mx, my]);
+  return { x: res[0], y: res[1] };
+}
+
+// ============================================================
+// Conversion DMS (Degrés Minutes Secondes)
+// ============================================================
+
+/**
+ * Convertit un angle décimal en chaîne DMS (Degrés°Minutes'Secondes'').
+ *
+ * @param {number}  decimal  - Angle en degrés décimaux
+ * @param {boolean} isLon    - true si longitude (affiche E/O), false si latitude (N/S)
+ * @returns {string} Représentation DMS (ex: "33°34'23.16\"N")
+ */
+function decimalToDMS(decimal, isLon) {
+  const abs = Math.abs(decimal);
+  const deg = Math.floor(abs);
+  const minFull = (abs - deg) * 60;
+  const min = Math.floor(minFull);
+  const sec = (minFull - min) * 60;
+
+  let hemisphere;
+  if (isLon) {
+    hemisphere = decimal >= 0 ? "E" : "O";
+  } else {
+    hemisphere = decimal >= 0 ? "N" : "S";
+  }
+
+  return `${deg}°${String(min).padStart(2,'0')}'${sec.toFixed(2).padStart(5,'0')}"${hemisphere}`;
+}
+
+/**
+ * Parse une chaîne DMS vers des degrés décimaux.
+ * Formats acceptés : "33°34'23.16\"N", "33 34 23.16 N", "33-34-23.16N"
+ *
+ * @param {string} dmsStr - Chaîne DMS à parser
+ * @returns {number|null} Valeur décimale ou null si parsing impossible
+ */
+function DMSToDecimal(dmsStr) {
+  if (!dmsStr) return null;
+  const str = dmsStr.trim().toUpperCase();
+
+  // Regex flexible pour divers formats DMS
+  const regex = /^(\d+)[°\s-](\d+)['\s-](\d+(?:\.\d+)?)["\s]?([NSEO])?$/;
+  const match = str.match(regex);
+
+  if (!match) {
+    // Essai format décimal pur
+    const num = parseFloat(str);
+    return isNaN(num) ? null : num;
+  }
+
+  const deg = parseInt(match[1]);
+  const min = parseInt(match[2]);
+  const sec = parseFloat(match[3]);
+  const hemi = match[4] || "";
+
+  let decimal = deg + min / 60 + sec / 3600;
+  if (hemi === "S" || hemi === "O") decimal = -decimal;
+
+  return decimal;
+}
+
+/**
+ * Formate des coordonnées WGS84 pour l'affichage dans la barre de statut.
+ *
+ * @param {number} lon
+ * @param {number} lat
+ * @returns {string} Format "33.5731°N, 7.5898°O"
+ */
+function formatWGS84(lon, lat) {
+  const latStr = `${Math.abs(lat).toFixed(6)}°${lat >= 0 ? 'N' : 'S'}`;
+  const lonStr = `${Math.abs(lon).toFixed(6)}°${lon >= 0 ? 'E' : 'O'}`;
+  return `${latStr}, ${lonStr}`;
+}
+
+/**
+ * Formate des coordonnées planes (Merchich) pour l'affichage.
+ *
+ * @param {number} x - Est (mètres)
+ * @param {number} y - Nord (mètres)
+ * @returns {string} Format "E: 168345.23 m, N: 375123.45 m"
+ */
+function formatPlane(x, y) {
+  return `E: ${x.toFixed(2)} m, N: ${y.toFixed(2)} m`;
+}
+
+/**
+ * Convertit un tableau de coordonnées [lon, lat] depuis une projection
+ * vers une autre. Utilisé pour les géométries OL.
+ *
+ * @param {Array<Array<number>>} coords  - Tableau de [x, y]
+ * @param {string} fromEPSG
+ * @param {string} toEPSG
+ * @returns {Array<Array<number>>}
+ */
+function transformCoordArray(coords, fromEPSG, toEPSG) {
+  return coords.map(([x, y]) => {
+    const res = proj4(fromEPSG, toEPSG, [x, y]);
+    return [res[0], res[1]];
+  });
+}
+
+/**
+ * Retourne le label de la zone Merchich sélectionnée.
+ *
+ * @param {string} epsg - Code EPSG
+ * @returns {string}
+ */
+function getZoneLabel(epsg) {
+  const labels = {
+    "EPSG:4326":  "WGS84",
+    "EPSG:26191": "Merchich Z1",
+    "EPSG:26192": "Merchich Z2",
+    "EPSG:26193": "Merchich Z3",
+    "EPSG:26194": "Merchich Z4",
+    "EPSG:3857":  "Web Mercator",
+  };
+  return labels[epsg] || epsg;
+}
+
+/**
+ * Valide si des coordonnées sont dans la plage du Maroc (approximatif).
+ * Utile pour détecter des erreurs de saisie grossières.
+ *
+ * @param {number} lon
+ * @param {number} lat
+ * @returns {boolean}
+ */
+function isInMoroccoArea(lon, lat) {
+  return lon >= -17 && lon <= 0 && lat >= 20 && lat <= 36;
+}
+
+// ============================================================
+// Test de validation (exécuté au chargement)
+// ============================================================
+(function testConversions() {
+  // Casablanca : 33.5731°N, 7.5898°O → Merchich Z2 ≈ E=168000, N=375000
+  const lon = -7.5898;
+  const lat = 33.5731;
+
+  const z2 = convertCoords(lon, lat, "EPSG:4326", "EPSG:26192");
+  console.log(
+    `[Projections] Test Casablanca WGS84→Z2 : E=${z2.x.toFixed(0)}, N=${z2.y.toFixed(0)}`
+  );
+
+  // Retour inverse
+  const back = convertCoords(z2.x, z2.y, "EPSG:26192", "EPSG:4326");
+  const errLon = Math.abs(back.x - lon);
+  const errLat = Math.abs(back.y - lat);
+  console.log(
+    `[Projections] Retour Z2→WGS84 : lon=${back.x.toFixed(6)}, lat=${back.y.toFixed(6)}`,
+    `(erreur: ${(errLon * 111320).toFixed(3)} m lon, ${(errLat * 110540).toFixed(3)} m lat)`
+  );
+})();
+
+
+/* ===== calculations.js ===== */
+/**
+ * calculations.js — Calculs géométriques géodésiques
+ * Géoportail Maroc
+ *
+ * Surface (Shoelace en coordonnées planes Merchich),
+ * périmètre, longueur de polyline, distance entre points.
+ * Tous les calculs utilisent proj4js via le module projections.js.
+ */
+
+// ============================================================
+// Calcul de surface (algorithme de Gauss/Shoelace)
+// ============================================================
+
+/**
+ * Calcule la surface d'un polygone par l'algorithme de Gauss (Shoelace formula)
+ * en coordonnées planes projetées (Merchich). Précis pour les surfaces planes.
+ *
+ * @param {Array<Array<number>>} coordsWGS84 - Tableau [[lon, lat], ...] en WGS84
+ * @param {string} [zoneEPSG="EPSG:26192"]  - Projection plane pour le calcul
+ * @returns {{ m2: number, ha: number, km2: number }} Surface en m², ha, km²
+ */
+function calculatePolygonArea(coordsWGS84, zoneEPSG = "EPSG:26192") {
+  if (!coordsWGS84 || coordsWGS84.length < 3) return { m2: 0, ha: 0, km2: 0 };
+
+  // Conversion vers coordonnées planes Merchich
+  const planCoords = coordsWGS84.map(([lon, lat]) => {
+    const res = convertCoords(lon, lat, "EPSG:4326", zoneEPSG);
+    return [res.x, res.y];
+  });
+
+  // Shoelace formula (Gauss)
+  let area = 0;
+  const n = planCoords.length;
+  for (let i = 0; i < n; i++) {
+    const [x1, y1] = planCoords[i];
+    const [x2, y2] = planCoords[(i + 1) % n];
+    area += x1 * y2 - x2 * y1;
+  }
+  const m2 = Math.abs(area) / 2;
+
+  return {
+    m2,
+    ha:  m2 / 10000,
+    km2: m2 / 1e6,
+  };
+}
+
+/**
+ * Version pour coordonnées Web Mercator (EPSG:3857) — utilisation interne OL.
+ *
+ * @param {Array<Array<number>>} coordsMerc - [[x3857, y3857], ...]
+ * @param {string} [zoneEPSG="EPSG:26192"]
+ * @returns {{ m2: number, ha: number, km2: number }}
+ */
+function calculatePolygonAreaFromMerc(coordsMerc, zoneEPSG = "EPSG:26192") {
+  const wgs84Coords = coordsMerc.map(([mx, my]) => {
+    const wgs = mercatorToWGS84(mx, my);
+    return [wgs.lon, wgs.lat];
+  });
+  return calculatePolygonArea(wgs84Coords, zoneEPSG);
+}
+
+// ============================================================
+// Calcul de longueur / périmètre
+// ============================================================
+
+/**
+ * Calcule la longueur d'une polyline (somme des segments) en mètres.
+ * Utilise la distance géodésique (formule de Haversine) pour la précision.
+ *
+ * @param {Array<Array<number>>} coordsWGS84 - [[lon, lat], ...]
+ * @returns {{ m: number, km: number }}
+ */
+function calculatePolylineLength(coordsWGS84) {
+  if (!coordsWGS84 || coordsWGS84.length < 2) return { m: 0, km: 0 };
+
+  let totalM = 0;
+  for (let i = 0; i < coordsWGS84.length - 1; i++) {
+    totalM += haversineDistance(coordsWGS84[i], coordsWGS84[i + 1]);
+  }
+  return { m: totalM, km: totalM / 1000 };
+}
+
+/**
+ * Calcule le périmètre d'un polygone en mètres (ferme la boucle).
+ *
+ * @param {Array<Array<number>>} coordsWGS84 - [[lon, lat], ...]
+ * @returns {{ m: number, km: number }}
+ */
+function calculatePolygonPerimeter(coordsWGS84) {
+  if (!coordsWGS84 || coordsWGS84.length < 2) return { m: 0, km: 0 };
+
+  const closed = [...coordsWGS84, coordsWGS84[0]]; // ferme le polygone
+  return calculatePolylineLength(closed);
+}
+
+/**
+ * Version depuis coordonnées Mercator.
+ *
+ * @param {Array<Array<number>>} coordsMerc
+ * @returns {{ m: number, km: number }}
+ */
+function calculateLengthFromMerc(coordsMerc) {
+  const wgs84 = coordsMerc.map(([mx, my]) => {
+    const wgs = mercatorToWGS84(mx, my);
+    return [wgs.lon, wgs.lat];
+  });
+  return calculatePolylineLength(wgs84);
+}
+
+// ============================================================
+// Distance entre deux points (Haversine)
+// ============================================================
+
+/**
+ * Distance géodésique entre deux points WGS84 (formule de Haversine).
+ * Précision ~0.5% pour des distances courtes (<1000 km).
+ *
+ * @param {Array<number>} pt1 - [lon, lat] en degrés
+ * @param {Array<number>} pt2 - [lon, lat] en degrés
+ * @returns {number} Distance en mètres
+ */
+function haversineDistance(pt1, pt2) {
+  const R = 6371008.8; // Rayon terrestre moyen en mètres
+  const [lon1, lat1] = pt1;
+  const [lon2, lat2] = pt2;
+
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+    Math.sin(dLon / 2) ** 2;
+
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+
+/**
+ * Distance entre deux points en coordonnées Mercator → WGS84 → Haversine.
+ *
+ * @param {Array<number>} pt1Merc - [x, y] EPSG:3857
+ * @param {Array<number>} pt2Merc - [x, y] EPSG:3857
+ * @returns {number} Distance en mètres
+ */
+function distanceBetweenMercPoints(pt1Merc, pt2Merc) {
+  const p1 = mercatorToWGS84(pt1Merc[0], pt1Merc[1]);
+  const p2 = mercatorToWGS84(pt2Merc[0], pt2Merc[1]);
+  return haversineDistance([p1.lon, p1.lat], [p2.lon, p2.lat]);
+}
+
+// ============================================================
+// Calcul de surface de cercle
+// ============================================================
+
+/**
+ * Calcule la surface d'un cercle.
+ *
+ * @param {number} radiusM - Rayon en mètres
+ * @returns {{ m2: number, ha: number, km2: number }}
+ */
+function calculateCircleArea(radiusM) {
+  const m2 = Math.PI * radiusM ** 2;
+  return { m2, ha: m2 / 10000, km2: m2 / 1e6 };
+}
+
+/**
+ * Calcule la circonférence d'un cercle.
+ *
+ * @param {number} radiusM - Rayon en mètres
+ * @returns {{ m: number, km: number }}
+ */
+function calculateCirclePerimeter(radiusM) {
+  const m = 2 * Math.PI * radiusM;
+  return { m, km: m / 1000 };
+}
+
+// ============================================================
+// Formatage des résultats
+// ============================================================
+
+/**
+ * Formate une surface en unités lisibles avec sélection automatique.
+ *
+ * @param {number} m2 - Surface en m²
+ * @returns {string} Ex: "1.25 ha" ou "2 500 m²" ou "1.2 km²"
+ */
+function formatArea(m2) {
+  if (m2 < 10000) {
+    return `${m2.toFixed(1)} m²`;
+  } else if (m2 < 1e6) {
+    return `${(m2 / 10000).toFixed(4)} ha`;
+  } else {
+    return `${(m2 / 1e6).toFixed(6)} km²`;
+  }
+}
+
+/**
+ * Formate une longueur en unités lisibles.
+ *
+ * @param {number} m - Longueur en mètres
+ * @returns {string} Ex: "350.4 m" ou "12.34 km"
+ */
+function formatLength(m) {
+  if (m < 1000) {
+    return `${m.toFixed(1)} m`;
+  } else {
+    return `${(m / 1000).toFixed(3)} km`;
+  }
+}
+
+// ============================================================
+// Utilitaires
+// ============================================================
+
+/** Convertit des degrés en radians */
+function toRad(deg) {
+  return deg * Math.PI / 180;
+}
+
+/**
+ * Calcule le centre de masse (centroïde) d'un polygone.
+ *
+ * @param {Array<Array<number>>} coords - [[x, y], ...]
+ * @returns {Array<number>} [cx, cy]
+ */
+function centroid(coords) {
+  if (!coords || coords.length === 0) return [0, 0];
+  const n = coords.length;
+  let cx = 0, cy = 0;
+  for (const [x, y] of coords) {
+    cx += x;
+    cy += y;
+  }
+  return [cx / n, cy / n];
+}
+
+/**
+ * Calcule les statistiques d'un ensemble de distances (min, max, moyenne).
+ *
+ * @param {Array<number>} distances - En mètres
+ * @returns {{ min: number, max: number, mean: number }}
+ */
+function distanceStats(distances) {
+  if (!distances.length) return { min: 0, max: 0, mean: 0 };
+  const min = Math.min(...distances);
+  const max = Math.max(...distances);
+  const mean = distances.reduce((s, v) => s + v, 0) / distances.length;
+  return { min, max, mean };
+}
+
+
+/* ===== main.js ===== */
+/**
+ * main.js — Initialisation de la carte OpenLayers et configuration globale
+ * Géoportail Maroc
+ */
+
+// ============================================================
+// État global de l'application
+// ============================================================
+const APP = {
+  map: null,             // Instance ol.Map
+  baseLayers: {},        // Couches de fond { satellite, osm }
+  drawLayer: null,       // Couche vecteur pour le dessin
+  markerLayer: null,     // Couche vecteur pour les marqueurs
+  tempLayer: null,       // Couche temporaire (navigation, etc.)
+  popup: null,           // Overlay popup
+  currentTool: "select", // Outil actif
+  currentZone: "EPSG:26192", // Zone Merchich pour affichage
+  importedLayers: [],    // Couches importées
+  drawnFeatures: [],     // Géométries dessinées (pour export)
+  drawInteraction: null, // Interaction de dessin active
+  modifyInteraction: null,
+  selectInteraction: null,
+};
+
+// ============================================================
+// Initialisation au chargement de la page
+// ============================================================
+document.addEventListener("DOMContentLoaded", () => {
+  initProjections();   // Enregistre proj4 dans OL
+  initMap();           // Crée la carte
+  initPopup();         // Crée le popup OL
+  initStatusBar();     // Bind curseur → coordonnées
+  initBasemapSwitcher();
+  initProjectionSelector();
+
+  // Exposer APP globalement pour les autres modules
+  window.APP = APP;
+
+  console.log("[Main] Géoportail Maroc initialisé.");
+});
+
+// ============================================================
+// Enregistrement proj4 dans OpenLayers
+// ============================================================
+function initProjections() {
+  try {
+    if (window.ol && ol.proj && ol.proj.proj4) {
+      ol.proj.proj4.register(proj4);
+    }
+  } catch (e) {
+    console.warn("[Main] ol.proj.proj4.register non disponible :", e);
+  }
+
+  // Méthode alternative : enregistrement via ol.proj.addProjection
+  const projDefs = [
+    { code: "EPSG:26191", extent: [-20037508.34, 2000000, 20037508.34, 8000000] },
+    { code: "EPSG:26192", extent: [-20037508.34, 2000000, 20037508.34, 8000000] },
+    { code: "EPSG:26193", extent: [-20037508.34, 2000000, 20037508.34, 8000000] },
+    { code: "EPSG:26194", extent: [-20037508.34, 2000000, 20037508.34, 8000000] },
+  ];
+
+  projDefs.forEach(def => {
+    try {
+      if (!ol.proj.get(def.code)) {
+        ol.proj.addProjection(new ol.proj.Projection({
+          code: def.code,
+          extent: def.extent,
+          units: "m",
+        }));
+      }
+    } catch (e) { /* Déjà enregistré */ }
+  });
+}
+
+// ============================================================
+// Initialisation de la carte
+// ============================================================
+function initMap() {
+  // Couche satellite ESRI World Imagery
+  const satelliteLayer = new ol.layer.Tile({
+    source: new ol.source.XYZ({
+      url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+      attributions: "© Esri — Source : Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP et la communauté GIS",
+      maxZoom: 20,
+    }),
+    visible: true,
+  });
+
+  // Couche OpenStreetMap
+  const osmLayer = new ol.layer.Tile({
+    source: new ol.source.OSM({
+      attributions: "© OpenStreetMap contributors",
+    }),
+    visible: false,
+  });
+
+  // Couche vecteur pour le dessin
+  const drawSource = new ol.source.Vector();
+  const drawLayer = new ol.layer.Vector({
+    source: drawSource,
+    style: (feature) => getDrawStyle(feature),
+    zIndex: 10,
+  });
+
+  // Couche vecteur pour les marqueurs
+  const markerSource = new ol.source.Vector();
+  const markerLayer = new ol.layer.Vector({
+    source: markerSource,
+    style: (feature) => getMarkerStyle(feature),
+    zIndex: 20,
+  });
+
+  // Couche temporaire (navigation, etc.)
+  const tempSource = new ol.source.Vector();
+  const tempLayer = new ol.layer.Vector({
+    source: tempSource,
+    style: (feature) => getTempStyle(feature),
+    zIndex: 30,
+  });
+
+  // Échelle graphique
+  const scaleLine = new ol.control.ScaleLine({
+    units: "metric",
+    bar: false,
+    minWidth: 80,
+  });
+
+  // Plein écran
+  const fullScreen = new ol.control.FullScreen();
+
+  // Rotation reset
+  const rotate = new ol.control.Rotate({ autoHide: false });
+
+  // Création de la carte
+  const map = new ol.Map({
+    target: "map",
+    layers: [satelliteLayer, osmLayer, drawLayer, markerLayer, tempLayer],
+    view: new ol.View({
+      center: ol.proj.fromLonLat([-5.4, 31.5]), // Centre du Maroc
+      zoom: 6,
+      minZoom: 3,
+      maxZoom: 21,
+    }),
+    controls: ol.control.defaults.defaults({
+      attribution: false,
+      rotate: false,
+    }).extend([scaleLine, fullScreen, rotate]),
+  });
+
+  // Interaction de sélection par défaut
+  const selectInteraction = new ol.interaction.Select({
+    layers: [drawLayer, markerLayer],
+    style: (feature) => getSelectStyle(feature),
+  });
+  map.addInteraction(selectInteraction);
+
+  // Stockage dans l'état global
+  APP.map = map;
+  APP.baseLayers = { satellite: satelliteLayer, osm: osmLayer };
+  APP.drawLayer = drawLayer;
+  APP.drawSource = drawSource;
+  APP.markerLayer = markerLayer;
+  APP.markerSource = markerSource;
+  APP.tempLayer = tempLayer;
+  APP.tempSource = tempSource;
+  APP.selectInteraction = selectInteraction;
+
+  // Événement de clic sur la carte
+  map.on("click", handleMapClick);
+
+  // Mise à jour du zoom dans la barre de statut
+  map.getView().on("change:resolution", updateStatusBar);
+}
+
+// ============================================================
+// Styles des couches vecteur
+// ============================================================
+
+/**
+ * Style pour les géométries dessinées.
+ * @param {ol.Feature} feature
+ * @returns {ol.style.Style}
+ */
+function getDrawStyle(feature) {
+  const geomType = feature.getGeometry()?.getType();
+  const color = feature.get("color") || "#e94560";
+  const opacity = feature.get("opacity") || 0.2;
+
+  const fill = new ol.style.Fill({
+    color: hexToRGBA(color, opacity),
+  });
+  const stroke = new ol.style.Stroke({
+    color: color,
+    width: 2,
+  });
+
+  if (geomType === "Point") {
+    return new ol.style.Style({
+      image: new ol.style.Circle({ radius: 6, fill: new ol.style.Fill({ color }), stroke }),
+    });
+  }
+
+  return new ol.style.Style({ fill, stroke });
+}
+
+/**
+ * Style pour les marqueurs de points.
+ * @param {ol.Feature} feature
+ * @returns {ol.style.Style}
+ */
+function getMarkerStyle(feature) {
+  const color = feature.get("color") || "#e94560";
+  const id = feature.get("id") || "?";
+
+  return [
+    new ol.style.Style({
+      image: new ol.style.RegularShape({
+        points: 4,
+        radius: 10,
+        angle: Math.PI / 4,
+        fill: new ol.style.Fill({ color }),
+        stroke: new ol.style.Stroke({ color: "#fff", width: 1.5 }),
+      }),
+    }),
+    new ol.style.Style({
+      text: new ol.style.Text({
+        text: String(id),
+        fill: new ol.style.Fill({ color: "#fff" }),
+        font: "bold 10px sans-serif",
+        textAlign: "center",
+        offsetY: 1,
+      }),
+    }),
+  ];
+}
+
+/**
+ * Style pour les éléments temporaires (navigation).
+ * @param {ol.Feature} feature
+ * @returns {ol.style.Style}
+ */
+function getTempStyle(feature) {
+  return new ol.style.Style({
+    image: new ol.style.Circle({
+      radius: 8,
+      fill: new ol.style.Fill({ color: "rgba(33, 150, 243, 0.8)" }),
+      stroke: new ol.style.Stroke({ color: "#fff", width: 2 }),
+    }),
+  });
+}
+
+/**
+ * Style pour les features sélectionnées.
+ * @param {ol.Feature} feature
+ * @returns {ol.style.Style}
+ */
+function getSelectStyle(feature) {
+  return new ol.style.Style({
+    image: new ol.style.Circle({
+      radius: 8,
+      fill: new ol.style.Fill({ color: "rgba(255, 215, 0, 0.8)" }),
+      stroke: new ol.style.Stroke({ color: "#fff", width: 2 }),
+    }),
+    stroke: new ol.style.Stroke({ color: "#ffd700", width: 3 }),
+    fill: new ol.style.Fill({ color: "rgba(255, 215, 0, 0.2)" }),
+  });
+}
+
+// ============================================================
+// Popup
+// ============================================================
+function initPopup() {
+  const container = document.getElementById("map-popup");
+  const closer = document.getElementById("popup-closer");
+
+  const overlay = new ol.Overlay({
+    element: container,
+    autoPan: { animation: { duration: 250 } },
+  });
+
+  APP.map.addOverlay(overlay);
+  APP.popupOverlay = overlay;
+
+  closer.addEventListener("click", () => {
+    overlay.setPosition(undefined);
+    container.classList.remove("visible");
+  });
+}
+
+/**
+ * Affiche le popup à une position donnée avec un contenu HTML.
+ *
+ * @param {Array<number>} coord   - Coordonnées EPSG:3857
+ * @param {string}        content - HTML du contenu
+ */
+function showPopup(coord, content) {
+  const container = document.getElementById("map-popup");
+  document.getElementById("popup-content").innerHTML = content;
+  APP.popupOverlay.setPosition(coord);
+  container.classList.add("visible");
+}
+
+/** Masque le popup. */
+function hidePopup() {
+  const container = document.getElementById("map-popup");
+  APP.popupOverlay.setPosition(undefined);
+  container.classList.remove("visible");
+}
+
+// ============================================================
+// Gestionnaire de clic sur la carte
+// ============================================================
+function handleMapClick(evt) {
+  const coord = evt.coordinate;
+  const wgs = mercatorToWGS84(coord[0], coord[1]);
+
+  // Vérifier s'il y a une feature cliquée
+  const feature = APP.map.forEachFeatureAtPixel(evt.pixel, f => f, {
+    hitTolerance: 6,
+  });
+
+  // Si outil "point" actif → on ne gère pas ici (géré par markers.js)
+  if (APP.currentTool === "point") return;
+
+  // Si outil mesure distance ou capture pour conversion
+  if (APP.currentTool === "measure-dist") {
+    if (typeof onMapClickMeasure === "function") onMapClickMeasure(coord, wgs);
+    return;
+  }
+
+  if (APP.currentTool === "convert-pick") {
+    if (typeof onMapClickConvert === "function") onMapClickConvert(wgs);
+    return;
+  }
+
+  // Clic sur feature → afficher info
+  if (feature) {
+    const type = feature.get("featureType");
+    if (type === "marker") {
+      if (typeof showMarkerPopup === "function") showMarkerPopup(feature, coord);
+    }
+    return;
+  }
+
+  hidePopup();
+}
+
+// ============================================================
+// Barre de statut — coordonnées curseur
+// ============================================================
+function initStatusBar() {
+  const map = APP.map;
+  const coordWGS84El = document.getElementById("coord-wgs84");
+  const coordZoneEl = document.getElementById("coord-zone");
+  const zoomEl = document.getElementById("status-zoom");
+  const scaleEl = document.getElementById("status-scale");
+
+  map.on("pointermove", (evt) => {
+    if (evt.dragging) return;
+    const coord = evt.coordinate;
+    const wgs = mercatorToWGS84(coord[0], coord[1]);
+
+    coordWGS84El.textContent = formatWGS84(wgs.lon, wgs.lat);
+
+    // Coordonnées dans la zone Merchich sélectionnée
+    const zone = APP.currentZone;
+    if (zone === "EPSG:4326") {
+      coordZoneEl.textContent = formatWGS84(wgs.lon, wgs.lat);
+    } else {
+      const res = convertCoords(wgs.lon, wgs.lat, "EPSG:4326", zone);
+      coordZoneEl.textContent = formatPlane(res.x, res.y);
+    }
+  });
+
+  // Mise à jour initiale du zoom
+  updateStatusBar();
+}
+
+function updateStatusBar() {
+  const view = APP.map.getView();
+  const zoom = view.getZoom();
+  const resolution = view.getResolution();
+
+  document.getElementById("status-zoom").textContent =
+    zoom ? zoom.toFixed(1) : "—";
+
+  // Calcul de l'échelle approximative (1:x)
+  if (resolution) {
+    const dpi = 96;
+    const mPerInch = 0.0254;
+    const scale = Math.round(resolution * dpi / mPerInch);
+    document.getElementById("status-scale").textContent =
+      `1:${scale.toLocaleString("fr-FR")}`;
+  }
+}
+
+// ============================================================
+// Switcher de fond de carte
+// ============================================================
+function initBasemapSwitcher() {
+  document.querySelectorAll(".basemap-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const basemap = btn.dataset.basemap;
+      setBasemap(basemap);
+      document.querySelectorAll(".basemap-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+    });
+  });
+}
+
+/**
+ * Active le fond de carte sélectionné.
+ * @param {"satellite"|"osm"|"none"} name
+ */
+function setBasemap(name) {
+  APP.baseLayers.satellite.setVisible(name === "satellite");
+  APP.baseLayers.osm.setVisible(name === "osm");
+}
+
+// ============================================================
+// Sélecteur de zone Merchich
+// ============================================================
+function initProjectionSelector() {
+  const sel = document.getElementById("select-zone");
+  const label = document.getElementById("coord-zone-label");
+
+  sel.addEventListener("change", () => {
+    APP.currentZone = sel.value;
+    label.textContent = getZoneLabel(sel.value) + " :";
+  });
+}
+
+// ============================================================
+// Utilitaires d'affichage
+// ============================================================
+
+/**
+ * Convertit un code couleur hexadécimal en RGBA CSS.
+ * @param {string} hex     - Ex: "#e94560"
+ * @param {number} opacity - 0 à 1
+ * @returns {string}       - "rgba(r, g, b, a)"
+ */
+function hexToRGBA(hex, opacity = 1) {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+}
+
+/**
+ * Zoom sur une étendue géographique.
+ * @param {Array<number>} extent - [minLon, minLat, maxLon, maxLat] WGS84
+ * @param {number} [padding=50]
+ */
+function zoomToExtentWGS84(extent, padding = 50) {
+  const mercExtent = ol.proj.transformExtent(extent, "EPSG:4326", "EPSG:3857");
+  APP.map.getView().fit(mercExtent, {
+    padding: [padding, padding, padding, padding],
+    maxZoom: 18,
+    duration: 500,
+  });
+}
+
+/**
+ * Affiche une notification toast.
+ * @param {string} message
+ * @param {"success"|"error"|"info"|"warning"} type
+ * @param {number} [duration=3000]
+ */
+function showToast(message, type = "info", duration = 3000) {
+  const container = document.getElementById("toast-container");
+  const toast = document.createElement("div");
+  toast.className = `toast ${type}`;
+
+  const icons = { success: "✓", error: "✕", info: "ℹ", warning: "⚠" };
+  toast.innerHTML = `<span>${icons[type] || "ℹ"}</span><span>${message}</span>`;
+
+  container.appendChild(toast);
+
+  setTimeout(() => {
+    toast.style.opacity = "0";
+    toast.style.transform = "translateX(20px)";
+    toast.style.transition = "all 0.3s ease";
+    setTimeout(() => toast.remove(), 300);
+  }, duration);
+}
+
+/**
+ * Définit l'outil actif et met à jour l'UI.
+ * @param {string} toolName
+ */
+function setActiveTool(toolName) {
+  APP.currentTool = toolName;
+  document.getElementById("status-tool").textContent = `Outil : ${getToolLabel(toolName)}`;
+
+  // Mettre à jour les boutons toolbar
+  document.querySelectorAll(".tool-btn[data-tool]").forEach(btn => {
+    btn.classList.toggle("active", btn.dataset.tool === toolName);
+  });
+}
+
+function getToolLabel(tool) {
+  const labels = {
+    select: "Sélection",
+    point: "Marquage point",
+    line: "Polyligne",
+    polygon: "Polygone",
+    rectangle: "Rectangle",
+    circle: "Cercle",
+    modify: "Modification",
+    "measure-dist": "Mesure distance",
+    "convert-pick": "Capture coordonnées",
+  };
+  return labels[tool] || tool;
+}
+
+/**
+ * Supprime l'interaction de dessin active.
+ */
+function removeDrawInteraction() {
+  if (APP.drawInteraction) {
+    APP.map.removeInteraction(APP.drawInteraction);
+    APP.drawInteraction = null;
+  }
+  if (APP.modifyInteraction && APP.modifyInteraction._isDrawModify) {
+    APP.map.removeInteraction(APP.modifyInteraction);
+    APP.modifyInteraction = null;
+  }
+  if (APP.snapInteraction) {
+    APP.map.removeInteraction(APP.snapInteraction);
+    APP.snapInteraction = null;
+  }
+}
+
+
+/* ===== markers.js ===== */
+/**
+ * markers.js — Gestion des points marqués
+ * Géoportail Maroc
+ *
+ * Ajout, suppression, édition, liste et export des marqueurs.
+ */
+
+// ============================================================
+// État des marqueurs
+// ============================================================
+let _markers = [];          // Tableau de { id, lon, lat, name, color, feature }
+let _markerIdCounter = 1;   // Auto-incrément ID
+let _markerClickHandler = null; // Handler de clic carte pour l'outil point
+
+/** Couleurs prédéfinies pour les marqueurs */
+const MARKER_COLORS = [
+  "#e94560", "#4caf50", "#2196f3", "#ff9800", "#9c27b0",
+  "#00bcd4", "#ffeb3b", "#ff5722", "#607d8b", "#8bc34a",
+];
+
+// ============================================================
+// Activation de l'outil "Point"
+// ============================================================
+
+/**
+ * Active l'outil de marquage de points : le prochain clic sur la carte
+ * crée un marqueur.
+ */
+function activatePointTool() {
+  // Retirer l'interaction de dessin si active
+  removeDrawInteraction();
+
+  // Ajouter le handler de clic
+  if (_markerClickHandler) {
+    APP.map.un("click", _markerClickHandler);
+  }
+
+  _markerClickHandler = (evt) => {
+    if (APP.currentTool !== "point") return;
+    const coord = evt.coordinate;
+    const wgs = mercatorToWGS84(coord[0], coord[1]);
+    addMarker(wgs.lon, wgs.lat);
+  };
+
+  APP.map.on("click", _markerClickHandler);
+}
+
+// ============================================================
+// Ajout de marqueur
+// ============================================================
+
+/**
+ * Ajoute un nouveau marqueur sur la carte.
+ *
+ * @param {number}  lon     - Longitude WGS84
+ * @param {number}  lat     - Latitude WGS84
+ * @param {string}  [name]  - Nom/description (optionnel)
+ * @param {string}  [color] - Couleur hex (optionnel, auto-cycle)
+ * @returns {Object} Le marqueur créé
+ */
+function addMarker(lon, lat, name, color) {
+  const id = _markerIdCounter++;
+  const markerColor = color || MARKER_COLORS[(id - 1) % MARKER_COLORS.length];
+  const markerName = name || `Point ${id}`;
+
+  // Calcul de toutes les coordonnées
+  const allCoords = convertFromWGS84(lon, lat);
+
+  // Création de la feature OL
+  const mercCoord = wgs84ToMercator(lon, lat);
+  const feature = new ol.Feature({
+    geometry: new ol.geom.Point([mercCoord.x, mercCoord.y]),
+    featureType: "marker",
+    markerId: id,
+  });
+  feature.setId(`marker-${id}`);
+
+  // Propriétés
+  feature.set("id", id);
+  feature.set("name", markerName);
+  feature.set("color", markerColor);
+  feature.set("lon", lon);
+  feature.set("lat", lat);
+
+  APP.markerSource.addFeature(feature);
+
+  // Enregistrement dans le tableau
+  const marker = {
+    id,
+    lon,
+    lat,
+    name: markerName,
+    color: markerColor,
+    allCoords,
+    feature,
+  };
+  _markers.push(marker);
+
+  // Mise à jour UI
+  renderMarkersList();
+  showMarkerPopup(feature, [mercCoord.x, mercCoord.y]);
+
+  return marker;
+}
+
+// ============================================================
+// Popup de marqueur
+// ============================================================
+
+/**
+ * Affiche le popup d'information d'un marqueur.
+ *
+ * @param {ol.Feature}      feature   - Feature OL du marqueur
+ * @param {Array<number>}   coord     - Position EPSG:3857 du popup
+ */
+function showMarkerPopup(feature, coord) {
+  const id = feature.get("id");
+  const marker = _markers.find(m => m.id === id);
+  if (!marker) return;
+
+  const { allCoords, color, name } = marker;
+  const { wgs84, wgs84dms, z1, z2, z3, z4 } = allCoords;
+
+  const html = `
+    <h4>
+      <span style="display:inline-block;width:10px;height:10px;border-radius:50%;
+        background:${color};margin-right:6px;"></span>
+      ${escapeHTML(name)}
+    </h4>
+    <div style="margin-bottom:8px;">
+      <input type="text" class="popup-edit-name" id="popup-name-${id}"
+        value="${escapeHTML(name)}" placeholder="Nom du point"
+        onchange="updateMarkerName(${id}, this.value)">
+    </div>
+
+    <div class="popup-coord-row">
+      <span class="popup-coord-label">WGS84 (DD) :</span>
+      <span class="popup-coord-value">${wgs84.lat.toFixed(6)}°N, ${Math.abs(wgs84.lon).toFixed(6)}°O</span>
+      <button class="popup-copy-btn" onclick="copyToClipboard('${wgs84.lat.toFixed(6)}, ${wgs84.lon.toFixed(6)}')">⎘</button>
+    </div>
+    <div class="popup-coord-row">
+      <span class="popup-coord-label">WGS84 DMS :</span>
+      <span class="popup-coord-value">${wgs84dms.lat}</span>
+    </div>
+    <div class="popup-coord-row">
+      <span class="popup-coord-label">Merchich Z1 :</span>
+      <span class="popup-coord-value">E ${z1.x.toFixed(2)}, N ${z1.y.toFixed(2)}</span>
+      <button class="popup-copy-btn" onclick="copyToClipboard('${z1.x.toFixed(2)} ${z1.y.toFixed(2)}')">⎘</button>
+    </div>
+    <div class="popup-coord-row">
+      <span class="popup-coord-label">Merchich Z2 :</span>
+      <span class="popup-coord-value">E ${z2.x.toFixed(2)}, N ${z2.y.toFixed(2)}</span>
+      <button class="popup-copy-btn" onclick="copyToClipboard('${z2.x.toFixed(2)} ${z2.y.toFixed(2)}')">⎘</button>
+    </div>
+    <div class="popup-coord-row">
+      <span class="popup-coord-label">Merchich Z3 :</span>
+      <span class="popup-coord-value">E ${z3.x.toFixed(2)}, N ${z3.y.toFixed(2)}</span>
+      <button class="popup-copy-btn" onclick="copyToClipboard('${z3.x.toFixed(2)} ${z3.y.toFixed(2)}')">⎘</button>
+    </div>
+    <div class="popup-coord-row">
+      <span class="popup-coord-label">Merchich Z4 :</span>
+      <span class="popup-coord-value">E ${z4.x.toFixed(2)}, N ${z4.y.toFixed(2)}</span>
+      <button class="popup-copy-btn" onclick="copyToClipboard('${z4.x.toFixed(2)} ${z4.y.toFixed(2)}')">⎘</button>
+    </div>
+
+    <div class="color-picker-row" style="margin-top:8px;">
+      <span style="font-size:11px;color:var(--text-muted);">Couleur :</span>
+      ${MARKER_COLORS.map(c => `
+        <span class="color-swatch ${c === color ? 'selected' : ''}"
+          style="background:${c}"
+          onclick="updateMarkerColor(${id}, '${c}', this)"></span>
+      `).join("")}
+    </div>
+
+    <div class="popup-actions">
+      <button class="btn-secondary-sm" onclick="zoomToMarker(${id})">Centrer</button>
+      <button class="btn-secondary-sm danger" onclick="deleteMarker(${id});hidePopup();"
+        style="color:#ff6b6b;">Supprimer</button>
+    </div>
+  `;
+
+  showPopup(coord, html);
+}
+
+// ============================================================
+// Mise à jour des marqueurs
+// ============================================================
+
+/**
+ * Met à jour le nom d'un marqueur.
+ * @param {number} id
+ * @param {string} newName
+ */
+function updateMarkerName(id, newName) {
+  const marker = _markers.find(m => m.id === id);
+  if (!marker) return;
+  marker.name = newName || `Point ${id}`;
+  marker.feature.set("name", marker.name);
+  renderMarkersList();
+}
+
+/**
+ * Met à jour la couleur d'un marqueur.
+ * @param {number}      id
+ * @param {string}      color
+ * @param {HTMLElement} swatchEl - Élément cliqué (pour mise à jour visuelle)
+ */
+function updateMarkerColor(id, color, swatchEl) {
+  const marker = _markers.find(m => m.id === id);
+  if (!marker) return;
+  marker.color = color;
+  marker.feature.set("color", color);
+
+  // Forcer le rafraîchissement du style
+  APP.markerLayer.changed();
+
+  // Mise à jour visuelle du popup
+  document.querySelectorAll(".color-swatch").forEach(s => s.classList.remove("selected"));
+  swatchEl.classList.add("selected");
+
+  renderMarkersList();
+}
+
+/**
+ * Supprime un marqueur.
+ * @param {number} id
+ */
+function deleteMarker(id) {
+  const idx = _markers.findIndex(m => m.id === id);
+  if (idx === -1) return;
+
+  const marker = _markers[idx];
+  APP.markerSource.removeFeature(marker.feature);
+  _markers.splice(idx, 1);
+
+  renderMarkersList();
+  showToast(`Point ${id} supprimé`, "info");
+}
+
+/**
+ * Supprime tous les marqueurs.
+ */
+function clearAllMarkers() {
+  if (_markers.length === 0) return;
+  if (!confirm("Supprimer tous les points marqués ?")) return;
+
+  APP.markerSource.clear();
+  _markers = [];
+  hidePopup();
+  renderMarkersList();
+  showToast("Tous les points supprimés", "info");
+}
+
+/**
+ * Centre la carte sur un marqueur.
+ * @param {number} id
+ */
+function zoomToMarker(id) {
+  const marker = _markers.find(m => m.id === id);
+  if (!marker) return;
+
+  const mercCoord = wgs84ToMercator(marker.lon, marker.lat);
+  APP.map.getView().animate({
+    center: [mercCoord.x, mercCoord.y],
+    zoom: Math.max(APP.map.getView().getZoom(), 15),
+    duration: 500,
+  });
+}
+
+// ============================================================
+// Rendu de la liste dans la sidebar
+// ============================================================
+
+/**
+ * Met à jour l'affichage de la liste des marqueurs dans la sidebar.
+ */
+function renderMarkersList() {
+  const container = document.getElementById("points-list");
+  if (!container) return;
+
+  if (_markers.length === 0) {
+    container.innerHTML = '<div class="empty-state">Aucun point marqué.<br>Utilisez l\'outil Point (●) pour en ajouter.</div>';
+    return;
+  }
+
+  container.innerHTML = _markers.map(m => {
+    const { wgs84 } = m.allCoords;
+    return `
+      <div class="point-item" data-id="${m.id}" onclick="selectMarkerFromList(${m.id})">
+        <span class="point-color-dot" style="background:${m.color}"></span>
+        <div class="point-info">
+          <div class="point-name">${escapeHTML(m.name)}</div>
+          <div class="point-coords-mini">
+            ${wgs84.lat.toFixed(5)}°N, ${Math.abs(wgs84.lon).toFixed(5)}°O
+          </div>
+        </div>
+        <div class="point-actions">
+          <button class="icon-btn" onclick="event.stopPropagation();zoomToMarker(${m.id})" title="Centrer">⊙</button>
+          <button class="icon-btn danger" onclick="event.stopPropagation();deleteMarker(${m.id})" title="Supprimer">✕</button>
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
+/**
+ * Sélectionne un marqueur depuis la liste (centre la carte + ouvre le popup).
+ * @param {number} id
+ */
+function selectMarkerFromList(id) {
+  const marker = _markers.find(m => m.id === id);
+  if (!marker) return;
+
+  const mercCoord = wgs84ToMercator(marker.lon, marker.lat);
+  APP.map.getView().animate({
+    center: [mercCoord.x, mercCoord.y],
+    zoom: Math.max(APP.map.getView().getZoom(), 14),
+    duration: 400,
+  });
+
+  setTimeout(() => showMarkerPopup(marker.feature, [mercCoord.x, mercCoord.y]), 200);
+
+  // Highlight dans la liste
+  document.querySelectorAll(".point-item").forEach(el => el.classList.remove("selected"));
+  document.querySelector(`.point-item[data-id="${id}"]`)?.classList.add("selected");
+}
+
+// ============================================================
+// Export des marqueurs
+// ============================================================
+
+/**
+ * Exporte les marqueurs en CSV (X, Y WGS84 + attributs).
+ */
+function exportMarkersCSV() {
+  if (_markers.length === 0) {
+    showToast("Aucun point à exporter", "warning");
+    return;
+  }
+
+  const headers = ["ID", "Nom", "Longitude_WGS84", "Latitude_WGS84",
+    "Z1_Est", "Z1_Nord", "Z2_Est", "Z2_Nord",
+    "Z3_Est", "Z3_Nord", "Z4_Est", "Z4_Nord", "Couleur"];
+
+  const rows = _markers.map(m => {
+    const { wgs84, z1, z2, z3, z4 } = m.allCoords;
+    return [
+      m.id, `"${m.name}"`,
+      wgs84.lon.toFixed(8), wgs84.lat.toFixed(8),
+      z1.x.toFixed(3), z1.y.toFixed(3),
+      z2.x.toFixed(3), z2.y.toFixed(3),
+      z3.x.toFixed(3), z3.y.toFixed(3),
+      z4.x.toFixed(3), z4.y.toFixed(3),
+      m.color,
+    ].join(",");
+  });
+
+  const csv = [headers.join(","), ...rows].join("\n");
+  downloadFile(csv, "points_marques.csv", "text/csv;charset=utf-8");
+  showToast(`${_markers.length} point(s) exporté(s) en CSV`, "success");
+}
+
+/**
+ * Exporte les marqueurs en GeoJSON (WGS84).
+ */
+function exportMarkersGeoJSON() {
+  if (_markers.length === 0) {
+    showToast("Aucun point à exporter", "warning");
+    return;
+  }
+
+  const geojson = {
+    type: "FeatureCollection",
+    features: _markers.map(m => ({
+      type: "Feature",
+      geometry: {
+        type: "Point",
+        coordinates: [m.lon, m.lat],
+      },
+      properties: {
+        id: m.id,
+        nom: m.name,
+        couleur: m.color,
+        z1_est: m.allCoords.z1.x,
+        z1_nord: m.allCoords.z1.y,
+        z2_est: m.allCoords.z2.x,
+        z2_nord: m.allCoords.z2.y,
+        z3_est: m.allCoords.z3.x,
+        z3_nord: m.allCoords.z3.y,
+        z4_est: m.allCoords.z4.x,
+        z4_nord: m.allCoords.z4.y,
+      },
+    })),
+  };
+
+  downloadFile(
+    JSON.stringify(geojson, null, 2),
+    "points_marques.geojson",
+    "application/geo+json"
+  );
+  showToast(`${_markers.length} point(s) exporté(s) en GeoJSON`, "success");
+}
+
+/**
+ * Retourne les marqueurs pour l'export global.
+ * @returns {Array<Object>}
+ */
+function getMarkersForExport() {
+  return _markers;
+}
+
+// ============================================================
+// Utilitaires
+// ============================================================
+
+/**
+ * Échappe les caractères HTML spéciaux.
+ * @param {string} str
+ * @returns {string}
+ */
+function escapeHTML(str) {
+  const div = document.createElement("div");
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+/**
+ * Déclenche le téléchargement d'un fichier côté client.
+ * @param {string} content   - Contenu du fichier
+ * @param {string} filename  - Nom du fichier
+ * @param {string} mimeType  - Type MIME
+ */
+function downloadFile(content, filename, mimeType) {
+  const blob = content instanceof Blob
+    ? content
+    : new Blob([content], { type: mimeType });
+
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+
+/* ===== drawing.js ===== */
+/**
+ * drawing.js — Outils de dessin OpenLayers
+ * Géoportail Maroc
+ *
+ * Polyline, polygone, rectangle, cercle, modification, suppression.
+ * Affichage temps réel des mesures (surface, longueur, rayon).
+ */
+
+// ============================================================
+// Démarrage d'une interaction de dessin
+// ============================================================
+
+/**
+ * Active un outil de dessin OpenLayers.
+ *
+ * @param {"LineString"|"Polygon"|"Box"|"Circle"} type - Type de géométrie à dessiner
+ */
+function startDraw(type) {
+  // Retirer l'interaction précédente
+  removeDrawInteraction();
+
+  // Configuration selon le type
+  let drawOptions = {
+    source: APP.drawSource,
+    freehand: false,
+  };
+
+  if (type === "Box") {
+    // Rectangle = polygone avec géométrie "Box"
+    drawOptions.type = "Circle";
+    drawOptions.geometryFunction = ol.interaction.Draw.createBox();
+  } else if (type === "Circle") {
+    drawOptions.type = "Circle";
+  } else {
+    drawOptions.type = type;
+  }
+
+  const drawInteraction = new ol.interaction.Draw(drawOptions);
+  APP.map.addInteraction(drawInteraction);
+  APP.drawInteraction = drawInteraction;
+
+  // Snap (accrochage aux géométries existantes)
+  const snapInteraction = new ol.interaction.Snap({ source: APP.drawSource });
+  APP.map.addInteraction(snapInteraction);
+  APP.snapInteraction = snapInteraction;
+
+  // Événement pendant le dessin (mesures temps réel)
+  let sketchFeature = null;
+
+  drawInteraction.on("drawstart", (evt) => {
+    sketchFeature = evt.feature;
+    sketchFeature.getGeometry().on("change", () => {
+      updateDrawMeasures(sketchFeature, type);
+    });
+  });
+
+  // Événement fin de dessin
+  drawInteraction.on("drawend", (evt) => {
+    const feature = evt.feature;
+
+    // Appliquer les attributs du panel
+    const nameInput = document.getElementById("draw-attr-name");
+    const colorInput = document.getElementById("draw-attr-color");
+    const name = nameInput?.value || "";
+    const color = colorInput?.value || "#e94560";
+
+    feature.set("featureType", "drawn");
+    feature.set("name", name);
+    feature.set("color", color);
+    feature.set("opacity", 0.2);
+    feature.set("geomType", type);
+
+    // ID unique
+    const drawId = `draw-${Date.now()}`;
+    feature.setId(drawId);
+    feature.set("drawId", drawId);
+
+    // Enregistrement
+    APP.drawnFeatures.push(feature);
+
+    // Calculer et afficher les mesures finales
+    const measures = getMeasures(feature, type);
+    displayFinalMeasures(measures, type);
+
+    showToast("Géométrie ajoutée", "success", 1500);
+  });
+}
+
+// ============================================================
+// Mesures en temps réel pendant le dessin
+// ============================================================
+
+/**
+ * Calcule et affiche les mesures pendant le dessin (temps réel).
+ *
+ * @param {ol.Feature}  feature
+ * @param {string}      type    - Type OL (LineString, Polygon, Box, Circle)
+ */
+function updateDrawMeasures(feature, type) {
+  const geom = feature.getGeometry();
+  if (!geom) return;
+
+  const geomType = geom.getType();
+
+  if (geomType === "LineString") {
+    const coords = geom.getCoordinates();
+    const len = calculateLengthFromMerc(coords);
+    const el = document.getElementById("draw-length-value");
+    if (el) el.textContent = formatLength(len.m);
+
+  } else if (geomType === "Polygon") {
+    const coords = geom.getCoordinates()[0];
+    if (coords.length > 2) {
+      const area = calculatePolygonAreaFromMerc(coords);
+      const len = calculateLengthFromMerc(coords);
+
+      const aEl = document.getElementById("draw-area-value");
+      const lEl = document.getElementById("draw-length-value");
+      if (aEl) aEl.textContent = formatArea(area.m2);
+      if (lEl) lEl.textContent = formatLength(len.m);
+    }
+
+  } else if (geomType === "Circle") {
+    const radiusMerc = geom.getRadius();
+    // Conversion du rayon : Mercator → approximation métrique
+    const center = geom.getCenter();
+    const centerWGS = mercatorToWGS84(center[0], center[1]);
+    const edgeMerc = [center[0] + radiusMerc, center[1]];
+    const edgeWGS = mercatorToWGS84(edgeMerc[0], edgeMerc[1]);
+    const radiusM = haversineDistance(
+      [centerWGS.lon, centerWGS.lat],
+      [edgeWGS.lon, edgeWGS.lat]
+    );
+
+    const area = calculateCircleArea(radiusM);
+    const rEl = document.getElementById("draw-radius-value");
+    const aEl = document.getElementById("draw-area-value");
+    if (rEl) rEl.textContent = formatLength(radiusM);
+    if (aEl) aEl.textContent = formatArea(area.m2);
+  }
+}
+
+/**
+ * Calcule les mesures d'une feature finalisée.
+ *
+ * @param {ol.Feature} feature
+ * @param {string}     type
+ * @returns {Object}   { area, length, radius, ... }
+ */
+function getMeasures(feature, type) {
+  const geom = feature.getGeometry();
+  const geomType = geom.getType();
+  const result = {};
+
+  if (geomType === "LineString") {
+    const coords = geom.getCoordinates();
+    result.length = calculateLengthFromMerc(coords);
+
+  } else if (geomType === "Polygon") {
+    const coords = geom.getCoordinates()[0];
+    result.area = calculatePolygonAreaFromMerc(coords);
+    result.perimeter = calculateLengthFromMerc(coords);
+
+  } else if (geomType === "Circle") {
+    const radiusMerc = geom.getRadius();
+    const center = geom.getCenter();
+    const centerWGS = mercatorToWGS84(center[0], center[1]);
+    const edgeMerc = [center[0] + radiusMerc, center[1]];
+    const edgeWGS = mercatorToWGS84(edgeMerc[0], edgeMerc[1]);
+    const radiusM = haversineDistance(
+      [centerWGS.lon, centerWGS.lat],
+      [edgeWGS.lon, edgeWGS.lat]
+    );
+
+    result.radius = { m: radiusM, km: radiusM / 1000 };
+    const areaObj = calculateCircleArea(radiusM);
+    result.area = areaObj;
+    result.perimeter = calculateCirclePerimeter(radiusM);
+  }
+
+  return result;
+}
+
+/**
+ * Affiche les mesures finales dans le panel.
+ * @param {Object} measures
+ * @param {string} type
+ */
+function displayFinalMeasures(measures, type) {
+  if (measures.area) {
+    const el = document.getElementById("draw-area-value");
+    if (el) el.textContent = formatArea(measures.area.m2);
+  }
+  if (measures.length) {
+    const el = document.getElementById("draw-length-value");
+    if (el) el.textContent = formatLength(measures.length.m);
+  }
+  if (measures.perimeter) {
+    const el = document.getElementById("draw-length-value");
+    if (el) el.textContent = `Périmètre : ${formatLength(measures.perimeter.m)}`;
+  }
+  if (measures.radius) {
+    const el = document.getElementById("draw-radius-value");
+    if (el) el.textContent = formatLength(measures.radius.m);
+  }
+}
+
+// ============================================================
+// Outil Modification
+// ============================================================
+
+/**
+ * Active l'outil de modification des géométries dessinées.
+ */
+function activateModify() {
+  removeDrawInteraction();
+
+  const modifyInteraction = new ol.interaction.Modify({
+    source: APP.drawSource,
+    deleteCondition: ol.events.condition.altKeyOnly,
+  });
+  modifyInteraction._isDrawModify = true;
+
+  APP.map.addInteraction(modifyInteraction);
+  APP.modifyInteraction = modifyInteraction;
+
+  modifyInteraction.on("modifyend", () => {
+    showToast("Géométrie modifiée", "success", 1500);
+  });
+
+  const snapInteraction = new ol.interaction.Snap({ source: APP.drawSource });
+  APP.map.addInteraction(snapInteraction);
+  APP.snapInteraction = snapInteraction;
+
+  showToast("Modification : faites glisser les sommets. Alt+clic pour supprimer un sommet.", "info", 4000);
+}
+
+// ============================================================
+// Mesure de distance interactive
+// ============================================================
+let _measurePoints = [];
+let _measureLine = null;
+
+/**
+ * Active l'outil de mesure de distance par clics successifs.
+ */
+function startMeasureDistance() {
+  removeDrawInteraction();
+  _measurePoints = [];
+
+  // Supprimer l'ancienne ligne de mesure
+  if (_measureLine) {
+    APP.drawSource.removeFeature(_measureLine);
+    _measureLine = null;
+  }
+
+  const drawInteraction = new ol.interaction.Draw({
+    source: APP.drawSource,
+    type: "LineString",
+    stopClick: true,
+  });
+  APP.map.addInteraction(drawInteraction);
+  APP.drawInteraction = drawInteraction;
+
+  let sketchGeom = null;
+
+  drawInteraction.on("drawstart", (evt) => {
+    sketchGeom = evt.feature.getGeometry();
+    sketchGeom.on("change", () => {
+      const coords = sketchGeom.getCoordinates();
+      updateMeasureDisplay(coords);
+    });
+  });
+
+  drawInteraction.on("drawend", (evt) => {
+    _measureLine = evt.feature;
+    _measureLine.set("featureType", "measure");
+    _measureLine.set("color", "#ff9800");
+    const coords = _measureLine.getGeometry().getCoordinates();
+    updateMeasureDisplay(coords, true);
+  });
+
+  // Bouton reset dans le panel
+  setTimeout(() => {
+    const resetBtn = document.getElementById("btn-reset-measure");
+    if (resetBtn) {
+      resetBtn.addEventListener("click", resetMeasure);
+    }
+  }, 100);
+}
+
+/**
+ * Met à jour l'affichage de la mesure de distance dans le panel.
+ * @param {Array<Array<number>>} mercCoords
+ * @param {boolean}              [final=false]
+ */
+function updateMeasureDisplay(mercCoords, final = false) {
+  if (mercCoords.length < 2) return;
+
+  let totalM = 0;
+  const segments = [];
+
+  for (let i = 0; i < mercCoords.length - 1; i++) {
+    const segM = distanceBetweenMercPoints(mercCoords[i], mercCoords[i + 1]);
+    totalM += segM;
+    segments.push(segM);
+  }
+
+  const totalEl = document.getElementById("measure-total-dist");
+  if (totalEl) totalEl.textContent = formatLength(totalM);
+
+  const segEl = document.getElementById("measure-segments");
+  if (segEl && segments.length > 1) {
+    segEl.innerHTML = segments.map((s, i) =>
+      `<div style="font-size:11px;color:var(--text-muted);padding:2px 0;">
+        Segment ${i + 1} : ${formatLength(s)}
+      </div>`
+    ).join("");
+  }
+}
+
+/** Réinitialise la mesure de distance. */
+function resetMeasure() {
+  if (_measureLine) {
+    APP.drawSource.removeFeature(_measureLine);
+    _measureLine = null;
+  }
+  _measurePoints = [];
+  removeDrawInteraction();
+  startMeasureDistance();
+
+  const totalEl = document.getElementById("measure-total-dist");
+  if (totalEl) totalEl.textContent = "—";
+  const segEl = document.getElementById("measure-segments");
+  if (segEl) segEl.innerHTML = "";
+}
+
+// ============================================================
+// Gestionnaire clic carte pour mesure (depuis main.js)
+// ============================================================
+function onMapClickMeasure(coord, wgs) {
+  // La mesure est gérée par l'interaction Draw
+}
+
+// ============================================================
+// Récupération des features dessinées pour export
+// ============================================================
+
+/**
+ * Retourne toutes les features dessinées sous forme GeoJSON (WGS84).
+ * @returns {Object} GeoJSON FeatureCollection
+ */
+function getDrawnFeaturesGeoJSON() {
+  const format = new ol.format.GeoJSON();
+  const features = APP.drawSource.getFeatures().filter(
+    f => f.get("featureType") !== "measure"
+  );
+
+  if (features.length === 0) return null;
+
+  // Transformer chaque feature de Mercator vers WGS84
+  const wgs84Features = features.map(f => {
+    const clone = f.clone();
+    clone.getGeometry().transform("EPSG:3857", "EPSG:4326");
+    return clone;
+  });
+
+  return JSON.parse(format.writeFeatures(wgs84Features, {
+    featureProjection: "EPSG:4326",
+    dataProjection: "EPSG:4326",
+  }));
+}
+
+
+/* ===== navigation.js ===== */
+/**
+ * navigation.js — Navigation par coordonnées "Aller à un point"
+ * Géoportail Maroc
+ */
+
+// ============================================================
+// Initialisation du panel de navigation
+// ============================================================
+
+/**
+ * Initialise les événements du panel de navigation une fois injecté dans le DOM.
+ * Appelé par ui.js après openFloatingPanel().
+ */
+function initNavigationPanel() {
+  const epsgSel = document.getElementById("nav-epsg");
+  if (!epsgSel) return;
+
+  epsgSel.addEventListener("change", onNavEpsgChange);
+  document.getElementById("btn-nav-go").addEventListener("click", navigateToPoint);
+  document.getElementById("btn-nav-add-marker").addEventListener("click", addNavPointToMarkers);
+
+  // Initialisation du mode d'affichage
+  onNavEpsgChange();
+}
+
+/**
+ * Gère le changement de système de coordonnées dans le panel navigation.
+ */
+function onNavEpsgChange() {
+  const epsg = document.getElementById("nav-epsg")?.value;
+  const ddFields = document.getElementById("nav-dd-fields");
+  const dmsFields = document.getElementById("nav-dms-fields");
+  if (!ddFields || !dmsFields) return;
+
+  const isDMS = epsg === "EPSG:4326-DMS";
+  ddFields.style.display = isDMS ? "none" : "flex";
+  dmsFields.style.display = isDMS ? "block" : "none";
+
+  // Mise à jour des placeholders selon la projection
+  const xInput = document.getElementById("nav-x");
+  const yInput = document.getElementById("nav-y");
+  if (!xInput || !yInput) return;
+
+  if (epsg === "EPSG:4326-DD") {
+    xInput.placeholder = "-7.5898 (Longitude)";
+    yInput.placeholder = "33.5731 (Latitude)";
+  } else if (epsg === "EPSG:26191") {
+    xInput.placeholder = "Est (m) ex: 500000";
+    yInput.placeholder = "Nord (m) ex: 375000";
+  } else if (epsg === "EPSG:26192") {
+    xInput.placeholder = "Est (m) ex: 168000";
+    yInput.placeholder = "Nord (m) ex: 375000";
+  } else if (epsg === "EPSG:26193") {
+    xInput.placeholder = "Est (m)";
+    yInput.placeholder = "Nord (m)";
+  } else if (epsg === "EPSG:26194") {
+    xInput.placeholder = "Est (m)";
+    yInput.placeholder = "Nord (m)";
+  }
+}
+
+// ============================================================
+// Point de navigation courant (pour "Ajouter aux marqueurs")
+// ============================================================
+let _navCurrentWGS84 = null;
+
+/**
+ * Lit les coordonnées du panel et navigue vers le point.
+ * Place un marqueur temporaire avec popup.
+ */
+function navigateToPoint() {
+  const epsg = document.getElementById("nav-epsg")?.value;
+  if (!epsg) return;
+
+  let lon, lat;
+
+  try {
+    if (epsg === "EPSG:4326-DMS") {
+      // Lecture DMS
+      const lonStr = document.getElementById("nav-dms-lon")?.value?.trim();
+      const latStr = document.getElementById("nav-dms-lat")?.value?.trim();
+
+      if (!lonStr || !latStr) {
+        showToast("Veuillez saisir les deux coordonnées DMS", "warning");
+        return;
+      }
+
+      lon = DMSToDecimal(lonStr);
+      lat = DMSToDecimal(latStr);
+
+      if (lon === null || lat === null) {
+        showToast("Format DMS invalide (ex: 7°35'23.28\"O)", "error");
+        return;
+      }
+    } else {
+      // Lecture décimale (WGS84 DD ou Merchich)
+      const x = parseFloat(document.getElementById("nav-x")?.value);
+      const y = parseFloat(document.getElementById("nav-y")?.value);
+
+      if (isNaN(x) || isNaN(y)) {
+        showToast("Coordonnées invalides", "warning");
+        return;
+      }
+
+      if (epsg === "EPSG:4326-DD") {
+        lon = x;
+        lat = y;
+      } else {
+        // Conversion Merchich → WGS84
+        const wgs = toWGS84(x, y, epsg);
+        lon = wgs.lon;
+        lat = wgs.lat;
+      }
+    }
+
+    // Validation approximative pour le Maroc et sa région
+    if (isNaN(lon) || isNaN(lat)) {
+      showToast("Coordonnées invalides", "error");
+      return;
+    }
+
+    // Avertissement si hors Maroc (non bloquant)
+    if (!isInMoroccoArea(lon, lat)) {
+      showToast("Attention : point hors de la zone Maroc", "warning", 4000);
+    }
+
+    _navCurrentWGS84 = { lon, lat };
+
+    // Centrer la carte sur le point
+    const mercCoord = wgs84ToMercator(lon, lat);
+    APP.map.getView().animate({
+      center: [mercCoord.x, mercCoord.y],
+      zoom: 17,
+      duration: 800,
+    });
+
+    // Marqueur temporaire
+    APP.tempSource.clear();
+    const feature = new ol.Feature({
+      geometry: new ol.geom.Point([mercCoord.x, mercCoord.y]),
+      featureType: "temp",
+    });
+    APP.tempSource.addFeature(feature);
+
+    // Afficher le popup avec toutes les coordonnées
+    const allCoords = convertFromWGS84(lon, lat);
+    showPopup([mercCoord.x, mercCoord.y], buildNavPopupHTML(allCoords));
+
+    // Afficher le résumé dans le panel
+    showNavResult(allCoords);
+
+  } catch (err) {
+    console.error("[Navigation] Erreur :", err);
+    showToast("Erreur de navigation : " + err.message, "error");
+  }
+}
+
+/**
+ * Construit le HTML du popup de navigation.
+ * @param {Object} allCoords - Résultat de convertFromWGS84
+ * @returns {string}
+ */
+function buildNavPopupHTML(allCoords) {
+  const { wgs84, wgs84dms, z1, z2, z3, z4 } = allCoords;
+  return `
+    <h4>Point de navigation</h4>
+    <div class="popup-coord-row">
+      <span class="popup-coord-label">WGS84 (DD) :</span>
+      <span class="popup-coord-value">${wgs84.lat.toFixed(6)}°N, ${Math.abs(wgs84.lon).toFixed(6)}°O</span>
+      <button class="popup-copy-btn" onclick="copyToClipboard('${wgs84.lat.toFixed(6)}, ${wgs84.lon.toFixed(6)}')">⎘</button>
+    </div>
+    <div class="popup-coord-row">
+      <span class="popup-coord-label">WGS84 (DMS) :</span>
+      <span class="popup-coord-value">${wgs84dms.lat}, ${wgs84dms.lon}</span>
+    </div>
+    <div class="popup-coord-row">
+      <span class="popup-coord-label">Merchich Z1 :</span>
+      <span class="popup-coord-value">E ${z1.x.toFixed(2)}, N ${z1.y.toFixed(2)}</span>
+      <button class="popup-copy-btn" onclick="copyToClipboard('${z1.x.toFixed(2)} ${z1.y.toFixed(2)}')">⎘</button>
+    </div>
+    <div class="popup-coord-row">
+      <span class="popup-coord-label">Merchich Z2 :</span>
+      <span class="popup-coord-value">E ${z2.x.toFixed(2)}, N ${z2.y.toFixed(2)}</span>
+      <button class="popup-copy-btn" onclick="copyToClipboard('${z2.x.toFixed(2)} ${z2.y.toFixed(2)}')">⎘</button>
+    </div>
+    <div class="popup-coord-row">
+      <span class="popup-coord-label">Merchich Z3 :</span>
+      <span class="popup-coord-value">E ${z3.x.toFixed(2)}, N ${z3.y.toFixed(2)}</span>
+      <button class="popup-copy-btn" onclick="copyToClipboard('${z3.x.toFixed(2)} ${z3.y.toFixed(2)}')">⎘</button>
+    </div>
+    <div class="popup-coord-row">
+      <span class="popup-coord-label">Merchich Z4 :</span>
+      <span class="popup-coord-value">E ${z4.x.toFixed(2)}, N ${z4.y.toFixed(2)}</span>
+      <button class="popup-copy-btn" onclick="copyToClipboard('${z4.x.toFixed(2)} ${z4.y.toFixed(2)}')">⎘</button>
+    </div>
+    <div class="popup-actions">
+      <button class="btn-primary-sm" onclick="addNavPointToMarkers()">+ Ajouter marqueur</button>
+      <button class="btn-secondary-sm" onclick="APP.tempSource.clear();hidePopup()">Fermer</button>
+    </div>
+  `;
+}
+
+/**
+ * Affiche le résumé des coordonnées dans le panel navigation.
+ * @param {Object} allCoords
+ */
+function showNavResult(allCoords) {
+  const resultDiv = document.getElementById("nav-result");
+  const contentDiv = document.getElementById("nav-result-content");
+  if (!resultDiv || !contentDiv) return;
+
+  const { wgs84, wgs84dms, z1, z2, z3, z4 } = allCoords;
+  contentDiv.innerHTML = `
+    <div class="popup-coord-row"><span class="popup-coord-label">WGS84 DD :</span>
+      <span class="popup-coord-value">${wgs84.lat.toFixed(6)}°N, ${Math.abs(wgs84.lon).toFixed(6)}°O</span></div>
+    <div class="popup-coord-row"><span class="popup-coord-label">WGS84 DMS :</span>
+      <span class="popup-coord-value">${wgs84dms.lat}</span></div>
+    <div class="popup-coord-row"><span class="popup-coord-label">Z2 :</span>
+      <span class="popup-coord-value">E ${z2.x.toFixed(2)}, N ${z2.y.toFixed(2)}</span></div>
+  `;
+  resultDiv.style.display = "block";
+}
+
+/**
+ * Ajoute le point de navigation courant à la liste des marqueurs.
+ */
+function addNavPointToMarkers() {
+  if (!_navCurrentWGS84) {
+    showToast("Naviguez d'abord vers un point", "warning");
+    return;
+  }
+  if (typeof addMarker === "function") {
+    addMarker(_navCurrentWGS84.lon, _navCurrentWGS84.lat);
+    APP.tempSource.clear();
+    hidePopup();
+    showToast("Point ajouté aux marqueurs", "success");
+
+    // Bascule vers l'onglet Points dans la sidebar
+    const pointsTab = document.querySelector('.tab-btn[data-tab="points"]');
+    if (pointsTab) pointsTab.click();
+  }
+}
+
+// ============================================================
+// Utilitaires
+// ============================================================
+
+/**
+ * Copie une chaîne dans le presse-papiers.
+ * @param {string} text
+ */
+function copyToClipboard(text) {
+  navigator.clipboard.writeText(text).then(() => {
+    showToast("Copié !", "success", 1500);
+  }).catch(() => {
+    // Fallback pour navigateurs anciens
+    const el = document.createElement("textarea");
+    el.value = text;
+    document.body.appendChild(el);
+    el.select();
+    document.execCommand("copy");
+    document.body.removeChild(el);
+    showToast("Copié !", "success", 1500);
+  });
+}
+
+
+/* ===== converter.js ===== */
+/**
+ * converter.js — Panel de conversion de coordonnées
+ * Géoportail Maroc
+ *
+ * Conversion simultanée WGS84 ↔ Merchich (toutes zones),
+ * avec historique des 20 dernières conversions.
+ */
+
+// ============================================================
+// État
+// ============================================================
+let _conversionHistory = [];   // Historique des 20 dernières conversions
+const MAX_HISTORY = 20;
+
+// ============================================================
+// Initialisation du panel de conversion
+// ============================================================
+
+/**
+ * Initialise les événements du panel de conversion une fois injecté.
+ * Appelé par ui.js après openFloatingPanel().
+ */
+function initConverterPanel() {
+  const computeBtn = document.getElementById("btn-conv-compute");
+  const pickBtn = document.getElementById("btn-conv-pick");
+
+  if (!computeBtn) return;
+
+  computeBtn.addEventListener("click", performConversion);
+
+  // Bouton "Cliquer sur la carte"
+  pickBtn.addEventListener("click", () => {
+    setActiveTool("convert-pick");
+    showToast("Cliquez sur la carte pour capturer les coordonnées", "info", 3000);
+  });
+
+  // Calcul automatique au changement des champs
+  ["conv-lon", "conv-lat"].forEach(id => {
+    document.getElementById(id)?.addEventListener("input", debounce(performConversion, 500));
+  });
+}
+
+/**
+ * Effectue la conversion et affiche les résultats dans le tableau.
+ */
+function performConversion() {
+  const lonInput = document.getElementById("conv-lon");
+  const latInput = document.getElementById("conv-lat");
+  if (!lonInput || !latInput) return;
+
+  const lon = parseFloat(lonInput.value);
+  const lat = parseFloat(latInput.value);
+
+  if (isNaN(lon) || isNaN(lat)) {
+    document.getElementById("conv-results-body").innerHTML = `
+      <tr><td colspan="3" style="text-align:center;color:var(--text-muted);padding:12px;">
+        Saisissez des coordonnées valides
+      </td></tr>`;
+    return;
+  }
+
+  const all = convertFromWGS84(lon, lat);
+  renderConversionTable(all, lon, lat);
+
+  // Enregistrement dans l'historique
+  addToConversionHistory(lon, lat, all);
+}
+
+/**
+ * Gestionnaire de clic sur la carte pour la conversion (depuis main.js).
+ * @param {{ lon: number, lat: number }} wgs
+ */
+function onMapClickConvert(wgs) {
+  // Remplir les champs
+  const lonInput = document.getElementById("conv-lon");
+  const latInput = document.getElementById("conv-lat");
+  if (lonInput) lonInput.value = wgs.lon.toFixed(8);
+  if (latInput) latInput.value = wgs.lat.toFixed(8);
+
+  performConversion();
+
+  // Revenir à l'outil de sélection
+  setActiveTool("select");
+}
+
+// ============================================================
+// Affichage du tableau de résultats
+// ============================================================
+
+/**
+ * Remplit le tableau de conversion avec toutes les coordonnées.
+ *
+ * @param {Object} all   - Résultat de convertFromWGS84
+ * @param {number} lon
+ * @param {number} lat
+ */
+function renderConversionTable(all, lon, lat) {
+  const tbody = document.getElementById("conv-results-body");
+  if (!tbody) return;
+
+  const { wgs84, wgs84dms, z1, z2, z3, z4, webMercator } = all;
+
+  const rows = [
+    {
+      label: "WGS84 (DD)",
+      value: `${lat.toFixed(8)}°, ${lon.toFixed(8)}°`,
+      copy: `${lat.toFixed(8)}, ${lon.toFixed(8)}`,
+    },
+    {
+      label: "WGS84 Lat DMS",
+      value: wgs84dms.lat,
+      copy: wgs84dms.lat,
+    },
+    {
+      label: "WGS84 Lon DMS",
+      value: wgs84dms.lon,
+      copy: wgs84dms.lon,
+    },
+    {
+      label: "Merchich Zone 1",
+      value: `E: ${z1.x.toFixed(3)} m, N: ${z1.y.toFixed(3)} m`,
+      copy: `${z1.x.toFixed(3)} ${z1.y.toFixed(3)}`,
+    },
+    {
+      label: "Merchich Zone 2",
+      value: `E: ${z2.x.toFixed(3)} m, N: ${z2.y.toFixed(3)} m`,
+      copy: `${z2.x.toFixed(3)} ${z2.y.toFixed(3)}`,
+    },
+    {
+      label: "Merchich Zone 3",
+      value: `E: ${z3.x.toFixed(3)} m, N: ${z3.y.toFixed(3)} m`,
+      copy: `${z3.x.toFixed(3)} ${z3.y.toFixed(3)}`,
+    },
+    {
+      label: "Merchich Zone 4",
+      value: `E: ${z4.x.toFixed(3)} m, N: ${z4.y.toFixed(3)} m`,
+      copy: `${z4.x.toFixed(3)} ${z4.y.toFixed(3)}`,
+    },
+    {
+      label: "Web Mercator",
+      value: `X: ${webMercator.x.toFixed(2)}, Y: ${webMercator.y.toFixed(2)}`,
+      copy: `${webMercator.x.toFixed(2)} ${webMercator.y.toFixed(2)}`,
+    },
+  ];
+
+  tbody.innerHTML = rows.map(row => `
+    <tr>
+      <td style="color:var(--text-muted);font-size:11px;">${row.label}</td>
+      <td class="conv-value">${row.value}</td>
+      <td>
+        <button class="conv-copy-btn" onclick="copyToClipboard('${row.copy.replace(/'/g, "\\'")}')">
+          Copier
+        </button>
+      </td>
+    </tr>
+  `).join("");
+}
+
+// ============================================================
+// Historique des conversions
+// ============================================================
+
+/**
+ * Ajoute une conversion à l'historique.
+ *
+ * @param {number} lon
+ * @param {number} lat
+ * @param {Object} allCoords
+ */
+function addToConversionHistory(lon, lat, allCoords) {
+  const entry = {
+    lon,
+    lat,
+    allCoords,
+    time: new Date(),
+  };
+
+  _conversionHistory.unshift(entry); // Plus récent en premier
+
+  if (_conversionHistory.length > MAX_HISTORY) {
+    _conversionHistory = _conversionHistory.slice(0, MAX_HISTORY);
+  }
+
+  renderConversionHistory();
+}
+
+/**
+ * Efface l'historique des conversions.
+ */
+function clearConversionHistory() {
+  _conversionHistory = [];
+  renderConversionHistory();
+  showToast("Historique effacé", "info");
+}
+
+/**
+ * Affiche l'historique des conversions dans la sidebar.
+ */
+function renderConversionHistory() {
+  const container = document.getElementById("history-list");
+  if (!container) return;
+
+  if (_conversionHistory.length === 0) {
+    container.innerHTML = '<div class="empty-state">Aucune conversion enregistrée</div>';
+    return;
+  }
+
+  container.innerHTML = _conversionHistory.map((entry, idx) => {
+    const { lon, lat, allCoords, time } = entry;
+    const { z2 } = allCoords;
+    const timeStr = time.toLocaleTimeString("fr-FR");
+
+    return `
+      <div class="history-item" onclick="restoreConversion(${idx})">
+        <div class="history-coords">
+          WGS84 : ${lat.toFixed(5)}°N, ${Math.abs(lon).toFixed(5)}°O
+        </div>
+        <div class="history-coords">
+          Merchich Z2 : E ${z2.x.toFixed(2)}, N ${z2.y.toFixed(2)}
+        </div>
+        <div class="history-time">${timeStr}</div>
+      </div>
+    `;
+  }).join("");
+}
+
+/**
+ * Restaure une conversion depuis l'historique dans le panel de conversion.
+ * @param {number} idx - Index dans l'historique
+ */
+function restoreConversion(idx) {
+  const entry = _conversionHistory[idx];
+  if (!entry) return;
+
+  // Ouvrir le panel de conversion si pas déjà ouvert
+  openFloatingPanel("Conversion de coordonnées", buildConverterPanel());
+  initConverterPanel();
+
+  // Remplir les champs
+  setTimeout(() => {
+    const lonInput = document.getElementById("conv-lon");
+    const latInput = document.getElementById("conv-lat");
+    if (lonInput) lonInput.value = entry.lon.toFixed(8);
+    if (latInput) latInput.value = entry.lat.toFixed(8);
+
+    renderConversionTable(entry.allCoords, entry.lon, entry.lat);
+  }, 50);
+}
+
+// ============================================================
+// Conversion depuis une projection quelconque vers WGS84
+// (entrée alternative dans le panel)
+// ============================================================
+
+/**
+ * Construit le HTML du panel de conversion étendu (avec sélecteur de projection source).
+ * Utilisé si l'on veut entrer en Merchich directement.
+ * @returns {string}
+ */
+function buildExtendedConverterPanel() {
+  return `
+    <div class="conv-input-section">
+      <div class="form-row">
+        <label>Projection source</label>
+        <select id="conv-src-proj">
+          <option value="EPSG:4326">WGS84 (DD)</option>
+          <option value="EPSG:26191">Merchich Zone 1</option>
+          <option value="EPSG:26192">Merchich Zone 2</option>
+          <option value="EPSG:26193">Merchich Zone 3</option>
+          <option value="EPSG:26194">Merchich Zone 4</option>
+        </select>
+      </div>
+      <div class="form-row-inline">
+        <div class="form-row">
+          <label id="conv-x-label">Longitude (X)</label>
+          <input type="number" id="conv-x" step="any">
+        </div>
+        <div class="form-row">
+          <label id="conv-y-label">Latitude (Y)</label>
+          <input type="number" id="conv-y" step="any">
+        </div>
+      </div>
+      <div style="display:flex;gap:6px;">
+        <button class="btn-primary" id="btn-conv-ext-compute" style="flex:1;">Convertir</button>
+        <button class="btn-secondary" id="btn-conv-pick" style="flex:1;">📍 Carte</button>
+      </div>
+    </div>
+    <table class="conv-table">
+      <thead><tr><th>Système</th><th>Valeur</th><th></th></tr></thead>
+      <tbody id="conv-results-body">
+        <tr><td colspan="3" style="text-align:center;color:var(--text-muted);padding:12px;">
+          Saisissez des coordonnées pour convertir
+        </td></tr>
+      </tbody>
+    </table>
+  `;
+}
+
+// ============================================================
+// Utilitaire debounce
+// ============================================================
+
+/**
+ * Retarde l'exécution d'une fonction.
+ * @param {Function} fn
+ * @param {number}   delay - ms
+ * @returns {Function}
+ */
+function debounce(fn, delay) {
+  let timer;
+  return function (...args) {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn.apply(this, args), delay);
+  };
+}
+
+
+/* ===== import.js ===== */
+/**
+ * import.js — Import de fichiers SIG (SHP, DXF, GeoJSON, KML, CSV)
+ * Géoportail Maroc
+ *
+ * Support : Shapefile (ZIP), DXF, GeoJSON, KML, CSV avec X/Y.
+ * Drag & drop + bouton parcourir.
+ * Détection automatique de la projection depuis .PRJ.
+ */
+
+// ============================================================
+// Initialisation de la zone d'import
+// ============================================================
+document.addEventListener("DOMContentLoaded", () => {
+  initImportZone();
+});
+
+function initImportZone() {
+  const dropZone = document.getElementById("drop-zone");
+  const fileInput = document.getElementById("file-input");
+  const browseBtn = document.getElementById("btn-browse");
+  const doImportBtn = document.getElementById("btn-do-import");
+
+  if (!dropZone) return;
+
+  // Drag & drop
+  dropZone.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    dropZone.classList.add("dragover");
+  });
+
+  dropZone.addEventListener("dragleave", () => {
+    dropZone.classList.remove("dragover");
+  });
+
+  dropZone.addEventListener("drop", (e) => {
+    e.preventDefault();
+    dropZone.classList.remove("dragover");
+    const files = Array.from(e.dataTransfer.files);
+    handleFilesSelected(files);
+  });
+
+  // Bouton parcourir
+  browseBtn?.addEventListener("click", () => fileInput?.click());
+
+  fileInput?.addEventListener("change", (e) => {
+    const files = Array.from(e.target.files);
+    handleFilesSelected(files);
+    e.target.value = ""; // reset
+  });
+
+  // Bouton import
+  doImportBtn?.addEventListener("click", doImport);
+}
+
+// ============================================================
+// Gestion des fichiers sélectionnés
+// ============================================================
+
+let _pendingFiles = []; // Fichiers en attente d'import
+
+/**
+ * Traite les fichiers sélectionnés et affiche les options.
+ * @param {File[]} files
+ */
+function handleFilesSelected(files) {
+  _pendingFiles = files;
+
+  const fileListEl = document.getElementById("import-file-list");
+  const optionsEl = document.getElementById("import-options");
+  if (!fileListEl || !optionsEl) return;
+
+  // Afficher la liste des fichiers
+  fileListEl.innerHTML = `
+    <div style="margin-bottom:10px;">
+      <p style="font-size:12px;font-weight:600;margin-bottom:6px;">Fichiers sélectionnés :</p>
+      ${files.map(f => `
+        <div style="display:flex;align-items:center;gap:6px;padding:4px 6px;background:var(--bg-dark);border-radius:3px;margin-bottom:3px;font-size:12px;">
+          <span>${getFileTypeIcon(f.name)}</span>
+          <span>${f.name}</span>
+          <span style="color:var(--text-muted);margin-left:auto;">${formatFileSize(f.size)}</span>
+        </div>
+      `).join("")}
+    </div>
+  `;
+
+  // Afficher les options
+  optionsEl.classList.remove("hidden");
+}
+
+/**
+ * Lance l'import des fichiers.
+ */
+async function doImport() {
+  if (!_pendingFiles || _pendingFiles.length === 0) {
+    showToast("Aucun fichier sélectionné", "warning");
+    return;
+  }
+
+  const progressEl = document.getElementById("import-progress");
+  const optionsEl = document.getElementById("import-options");
+  const progressFill = document.getElementById("import-progress-fill");
+  const statusText = document.getElementById("import-status-text");
+
+  optionsEl.classList.add("hidden");
+  progressEl.classList.remove("hidden");
+
+  const userProjection = document.getElementById("import-projection")?.value || "auto";
+  let imported = 0;
+
+  for (let i = 0; i < _pendingFiles.length; i++) {
+    const file = _pendingFiles[i];
+    const pct = Math.round((i / _pendingFiles.length) * 100);
+
+    progressFill.style.width = pct + "%";
+    statusText.textContent = `Import de ${file.name}...`;
+
+    try {
+      await importFile(file, userProjection);
+      imported++;
+    } catch (err) {
+      console.error(`[Import] Erreur ${file.name} :`, err);
+      showToast(`Erreur : ${file.name} — ${err.message}`, "error", 5000);
+    }
+  }
+
+  progressFill.style.width = "100%";
+  statusText.textContent = `${imported} fichier(s) importé(s) avec succès.`;
+
+  setTimeout(() => {
+    progressEl.classList.add("hidden");
+    document.getElementById("import-options").classList.add("hidden");
+    document.getElementById("drop-zone").style.display = "";
+    closeModal("modal-import");
+    showToast(`${imported} couche(s) ajoutée(s)`, "success");
+  }, 1500);
+}
+
+// ============================================================
+// Dispatch selon le type de fichier
+// ============================================================
+
+/**
+ * Importe un fichier selon son extension.
+ * @param {File}   file
+ * @param {string} userProjection - "auto" ou code EPSG
+ */
+async function importFile(file, userProjection) {
+  const ext = getExtension(file.name).toLowerCase();
+
+  if (ext === "zip") {
+    await importShapefile(file, userProjection);
+  } else if (ext === "geojson" || ext === "json") {
+    await importGeoJSON(file, userProjection);
+  } else if (ext === "kml") {
+    await importKML(file);
+  } else if (ext === "csv") {
+    await importCSV(file, userProjection);
+  } else if (ext === "dxf") {
+    await importDXF(file);
+  } else {
+    throw new Error(`Format non supporté : .${ext}`);
+  }
+}
+
+// ============================================================
+// Import Shapefile (ZIP)
+// ============================================================
+
+/**
+ * Importe un Shapefile depuis un ZIP (shp + dbf + prj).
+ * Utilise la bibliothèque shpjs.
+ *
+ * @param {File}   file
+ * @param {string} userProjection
+ */
+async function importShapefile(file, userProjection) {
+  if (typeof shp === "undefined") {
+    throw new Error("La bibliothèque shpjs n'est pas chargée");
+  }
+
+  const arrayBuffer = await file.arrayBuffer();
+
+  let geojson;
+  try {
+    geojson = await shp(arrayBuffer);
+  } catch (err) {
+    throw new Error("Lecture SHP échouée : " + err.message);
+  }
+
+  // shpjs peut retourner un tableau de FeatureCollection (multi-layer)
+  const collections = Array.isArray(geojson) ? geojson : [geojson];
+
+  for (const collection of collections) {
+    // Détection de la projection
+    const srcProj = userProjection !== "auto" ? userProjection : "EPSG:4326";
+
+    addGeoJSONToMap(collection, file.name.replace(".zip", ""), srcProj);
+  }
+}
+
+// ============================================================
+// Import GeoJSON
+// ============================================================
+
+/**
+ * Importe un fichier GeoJSON.
+ *
+ * @param {File}   file
+ * @param {string} userProjection
+ */
+async function importGeoJSON(file, userProjection) {
+  const text = await file.text();
+  let geojson;
+
+  try {
+    geojson = JSON.parse(text);
+  } catch (err) {
+    throw new Error("JSON invalide : " + err.message);
+  }
+
+  if (!geojson.type) {
+    throw new Error("GeoJSON invalide : propriété 'type' manquante");
+  }
+
+  const srcProj = userProjection !== "auto" ? userProjection : "EPSG:4326";
+  addGeoJSONToMap(geojson, file.name, srcProj);
+}
+
+// ============================================================
+// Import KML
+// ============================================================
+
+/**
+ * Importe un fichier KML via le format OL.
+ * @param {File} file
+ */
+async function importKML(file) {
+  const text = await file.text();
+  const format = new ol.format.KML({
+    extractStyles: true,
+    showPointNames: true,
+  });
+
+  let features;
+  try {
+    features = format.readFeatures(text, {
+      dataProjection: "EPSG:4326",
+      featureProjection: "EPSG:3857",
+    });
+  } catch (err) {
+    throw new Error("KML invalide : " + err.message);
+  }
+
+  if (features.length === 0) {
+    throw new Error("Aucune entité trouvée dans le KML");
+  }
+
+  addFeaturesToMap(features, file.name, "KML");
+}
+
+// ============================================================
+// Import CSV (avec colonnes X, Y)
+// ============================================================
+
+/**
+ * Importe un fichier CSV avec colonnes X/Y.
+ * Détecte automatiquement les colonnes de coordonnées.
+ *
+ * @param {File}   file
+ * @param {string} userProjection
+ */
+async function importCSV(file, userProjection) {
+  const text = await file.text();
+  const lines = text.trim().split(/\r?\n/);
+
+  if (lines.length < 2) {
+    throw new Error("CSV trop court (en-tête + au moins 1 ligne)");
+  }
+
+  // Détection du séparateur (virgule, point-virgule, tabulation)
+  const header = lines[0];
+  const sep = header.includes(";") ? ";" : header.includes("\t") ? "\t" : ",";
+  const headers = header.split(sep).map(h => h.trim().toLowerCase().replace(/"/g, ""));
+
+  // Détection des colonnes X/Y
+  const xNames = ["x", "lon", "longitude", "lng", "east", "est"];
+  const yNames = ["y", "lat", "latitude", "north", "nord"];
+
+  const xCol = headers.findIndex(h => xNames.includes(h));
+  const yCol = headers.findIndex(h => yNames.includes(h));
+
+  if (xCol === -1 || yCol === -1) {
+    throw new Error("Colonnes X/Y non trouvées. En-têtes attendus : x/lon/longitude, y/lat/latitude");
+  }
+
+  const srcProj = userProjection !== "auto" ? userProjection : "EPSG:4326";
+  const features = [];
+
+  for (let i = 1; i < lines.length; i++) {
+    if (!lines[i].trim()) continue;
+    const cells = lines[i].split(sep).map(c => c.trim().replace(/"/g, ""));
+
+    const rawX = parseFloat(cells[xCol]);
+    const rawY = parseFloat(cells[yCol]);
+
+    if (isNaN(rawX) || isNaN(rawY)) continue;
+
+    // Conversion vers WGS84 si nécessaire, puis vers Mercator pour OL
+    let lon = rawX, lat = rawY;
+    if (srcProj !== "EPSG:4326") {
+      const wgs = toWGS84(rawX, rawY, srcProj);
+      lon = wgs.lon;
+      lat = wgs.lat;
+    }
+
+    const mercCoord = wgs84ToMercator(lon, lat);
+    const feature = new ol.Feature({
+      geometry: new ol.geom.Point([mercCoord.x, mercCoord.y]),
+      featureType: "imported",
+    });
+
+    // Attributs
+    const props = {};
+    headers.forEach((h, j) => {
+      if (j !== xCol && j !== yCol) {
+        props[h] = cells[j];
+      }
+    });
+    feature.setProperties(props);
+
+    features.push(feature);
+  }
+
+  if (features.length === 0) {
+    throw new Error("Aucune entité valide trouvée dans le CSV");
+  }
+
+  addFeaturesToMap(features, file.name, "CSV", `${features.length} points`);
+  showToast(`${features.length} points importés depuis ${file.name}`, "success");
+}
+
+// ============================================================
+// Import DXF
+// ============================================================
+
+/**
+ * Importe un fichier DXF.
+ * Parser DXF minimal intégré (LINE, LWPOLYLINE, POLYLINE, POINT, CIRCLE, ARC, TEXT, INSERT).
+ *
+ * @param {File} file
+ */
+async function importDXF(file) {
+  const text = await file.text();
+  const features = parseDXF(text);
+
+  if (features.length === 0) {
+    throw new Error("Aucune entité géométrique trouvée dans le DXF");
+  }
+
+  addFeaturesToMap(features, file.name, "DXF", `${features.length} entités`);
+  showToast(`${features.length} entités DXF importées`, "success");
+}
+
+/**
+ * Parse un fichier DXF et retourne des features OpenLayers (EPSG:3857).
+ * Hypothèse : les coordonnées DXF sont en WGS84 ou Merchich selon la config.
+ *
+ * @param {string} dxfText
+ * @returns {ol.Feature[]}
+ */
+function parseDXF(dxfText) {
+  const features = [];
+
+  // Normalisation des fins de ligne
+  const lines = dxfText.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n");
+  let i = 0;
+
+  /**
+   * Lit la prochaine paire (code, valeur) du DXF.
+   * @returns {{ code: number, value: string }|null}
+   */
+  function readPair() {
+    if (i >= lines.length - 1) return null;
+    const code = parseInt(lines[i++].trim());
+    const value = lines[i++].trim();
+    return { code, value };
+  }
+
+  // Passer à la section ENTITIES
+  while (i < lines.length) {
+    const pair = readPair();
+    if (!pair) break;
+    if (pair.code === 2 && pair.value === "ENTITIES") break;
+  }
+
+  // Parser les entités
+  while (i < lines.length) {
+    const pair = readPair();
+    if (!pair) break;
+    if (pair.code === 0) {
+      const entityType = pair.value;
+      if (entityType === "ENDSEC" || entityType === "EOF") break;
+
+      const feature = parseDXFEntity(entityType, lines, i);
+      if (feature) {
+        features.push(feature.feature);
+        i = feature.nextIndex;
+      }
+    }
+  }
+
+  return features;
+}
+
+/**
+ * Parse une entité DXF et retourne la feature OL correspondante.
+ *
+ * @param {string}   type    - Type d'entité DXF (LINE, POINT, LWPOLYLINE, ...)
+ * @param {string[]} lines   - Tableau des lignes du fichier
+ * @param {number}   startI  - Index de départ
+ * @returns {{ feature: ol.Feature, nextIndex: number }|null}
+ */
+function parseDXFEntity(type, lines, startI) {
+  let i = startI;
+  const props = {};
+  const vertices = [];
+  let x = 0, y = 0, z = 0;
+  let x1 = 0, y1 = 0, x2 = 0, y2 = 0;
+  let radius = 0;
+  let isClosed = false;
+  let layer = "0";
+
+  // Lire les propriétés jusqu'à la prochaine entité
+  while (i < lines.length) {
+    const codeStr = lines[i]?.trim();
+    const value = lines[i + 1]?.trim();
+    if (codeStr === undefined || value === undefined) break;
+
+    const code = parseInt(codeStr);
+    i += 2;
+
+    if (code === 0) {
+      // Prochaine entité — revenir 2 lignes en arrière
+      i -= 2;
+      break;
+    }
+
+    if (code === 8) layer = value;
+    else if (code === 10) x = parseFloat(value) || 0;
+    else if (code === 20) y = parseFloat(value) || 0;
+    else if (code === 30) z = parseFloat(value) || 0;
+    else if (code === 11) x2 = parseFloat(value) || 0;
+    else if (code === 21) y2 = parseFloat(value) || 0;
+    else if (code === 40) radius = parseFloat(value) || 0;
+    else if (code === 70) isClosed = (parseInt(value) & 1) === 1;
+
+    // LWPOLYLINE vertices
+    if (type === "LWPOLYLINE" || type === "POLYLINE") {
+      if (code === 10) {
+        vertices.push({ x: parseFloat(value) || 0, y: y });
+      } else if (code === 20 && vertices.length > 0) {
+        vertices[vertices.length - 1].y = parseFloat(value) || 0;
+      }
+    }
+  }
+
+  let olFeature = null;
+
+  try {
+    switch (type) {
+      case "POINT": {
+        const merc = dxfCoordsToMerc(x, y);
+        olFeature = new ol.Feature({
+          geometry: new ol.geom.Point([merc.x, merc.y]),
+          featureType: "imported",
+          layer,
+        });
+        break;
+      }
+
+      case "LINE": {
+        const p1 = dxfCoordsToMerc(x, y);
+        const p2 = dxfCoordsToMerc(x2, y2);
+        olFeature = new ol.Feature({
+          geometry: new ol.geom.LineString([[p1.x, p1.y], [p2.x, p2.y]]),
+          featureType: "imported",
+          layer,
+        });
+        break;
+      }
+
+      case "LWPOLYLINE":
+      case "POLYLINE": {
+        if (vertices.length < 2) break;
+        const mercVerts = vertices.map(v => {
+          const m = dxfCoordsToMerc(v.x, v.y);
+          return [m.x, m.y];
+        });
+
+        if (isClosed) {
+          mercVerts.push(mercVerts[0]); // Fermer le polygone
+          olFeature = new ol.Feature({
+            geometry: new ol.geom.Polygon([mercVerts]),
+            featureType: "imported",
+            layer,
+          });
+        } else {
+          olFeature = new ol.Feature({
+            geometry: new ol.geom.LineString(mercVerts),
+            featureType: "imported",
+            layer,
+          });
+        }
+        break;
+      }
+
+      case "CIRCLE": {
+        // Approximation du cercle par 64 points
+        const center = dxfCoordsToMerc(x, y);
+        const circlePoints = [];
+        for (let a = 0; a <= 360; a += 360 / 64) {
+          const rad = a * Math.PI / 180;
+          circlePoints.push([
+            center.x + radius * Math.cos(rad),
+            center.y + radius * Math.sin(rad),
+          ]);
+        }
+        olFeature = new ol.Feature({
+          geometry: new ol.geom.Polygon([circlePoints]),
+          featureType: "imported",
+          layer,
+        });
+        break;
+      }
+
+      default:
+        break;
+    }
+  } catch (err) {
+    console.warn(`[DXF] Erreur entité ${type} :`, err);
+  }
+
+  return olFeature ? { feature: olFeature, nextIndex: i } : null;
+}
+
+/**
+ * Convertit des coordonnées DXF (supposées WGS84 ou planes) vers Mercator.
+ * Pour les fichiers DXF géographiques (lon/lat), conversion directe.
+ * Pour les DXF en coordonnées locales (Marchich), l'utilisateur doit spécifier.
+ *
+ * @param {number} x - Longitude ou Est
+ * @param {number} y - Latitude ou Nord
+ * @returns {{ x: number, y: number }} Coordonnées EPSG:3857
+ */
+function dxfCoordsToMerc(x, y) {
+  // Détection automatique : si x dans [-180, 180] et y dans [-90, 90] → WGS84
+  if (x >= -180 && x <= 180 && y >= -90 && y <= 90) {
+    return wgs84ToMercator(x, y);
+  }
+  // Sinon, supposer Mercator direct (cas rares)
+  return { x, y };
+}
+
+// ============================================================
+// Ajout des features à la carte
+// ============================================================
+
+/**
+ * Ajoute des features GeoJSON à la carte via OpenLayers.
+ *
+ * @param {Object} geojson       - FeatureCollection GeoJSON
+ * @param {string} layerName     - Nom de la couche
+ * @param {string} srcProjection - Code EPSG source
+ */
+function addGeoJSONToMap(geojson, layerName, srcProjection = "EPSG:4326") {
+  const format = new ol.format.GeoJSON();
+
+  let features;
+  try {
+    features = format.readFeatures(geojson, {
+      dataProjection: srcProjection,
+      featureProjection: "EPSG:3857",
+    });
+  } catch (err) {
+    throw new Error("Lecture GeoJSON OpenLayers échouée : " + err.message);
+  }
+
+  if (features.length === 0) {
+    throw new Error("Aucune entité dans le fichier");
+  }
+
+  features.forEach(f => f.set("featureType", "imported"));
+
+  addFeaturesToMap(features, layerName, getGeomTypeBadge(features), `${features.length} entités`);
+}
+
+/**
+ * Crée une couche vecteur avec les features et l'ajoute à la carte.
+ *
+ * @param {ol.Feature[]} features
+ * @param {string}       layerName
+ * @param {string}       typeLabel
+ * @param {string}       [info]
+ */
+function addFeaturesToMap(features, layerName, typeLabel, info) {
+  const source = new ol.source.Vector({ features });
+  const olLayer = new ol.layer.Vector({
+    source,
+    style: (feature) => getImportedStyle(feature),
+    zIndex: 5,
+  });
+
+  APP.map.addLayer(olLayer);
+
+  // Enregistrement dans l'état
+  const layerDef = {
+    name: layerName,
+    type: typeLabel,
+    olLayer,
+    source,
+    featureCount: features.length,
+  };
+  APP.importedLayers.push(layerDef);
+
+  // Zoom sur l'étendue
+  try {
+    const extent = source.getExtent();
+    if (extent && isFinite(extent[0])) {
+      APP.map.getView().fit(extent, {
+        padding: [40, 40, 40, 40],
+        maxZoom: 18,
+        duration: 600,
+      });
+    }
+  } catch (e) {}
+
+  // Mise à jour de la sidebar
+  renderLayersList();
+}
+
+// ============================================================
+// Style des couches importées
+// ============================================================
+
+/**
+ * Style pour les entités importées (auto-couleur par type).
+ * @param {ol.Feature} feature
+ * @returns {ol.style.Style}
+ */
+function getImportedStyle(feature) {
+  const geomType = feature.getGeometry()?.getType();
+  const layer = feature.get("layer") || "";
+
+  // Couleur aléatoire stable basée sur le nom du layer
+  const layerColor = stringToColor(layer || "default");
+
+  const fill = new ol.style.Fill({ color: hexToRGBA(layerColor, 0.25) });
+  const stroke = new ol.style.Stroke({ color: layerColor, width: 2 });
+
+  if (geomType === "Point" || geomType === "MultiPoint") {
+    return new ol.style.Style({
+      image: new ol.style.Circle({ radius: 5, fill: new ol.style.Fill({ color: layerColor }), stroke }),
+    });
+  }
+
+  return new ol.style.Style({ fill, stroke });
+}
+
+/**
+ * Génère une couleur hex à partir d'une chaîne (stable).
+ * @param {string} str
+ * @returns {string} Code couleur hex
+ */
+function stringToColor(str) {
+  const palette = [
+    "#4caf50", "#2196f3", "#ff9800", "#9c27b0",
+    "#00bcd4", "#ff5722", "#607d8b", "#8bc34a",
+    "#3f51b5", "#e91e63",
+  ];
+  let hash = 0;
+  for (let c of str) hash = (hash * 31 + c.charCodeAt(0)) | 0;
+  return palette[Math.abs(hash) % palette.length];
+}
+
+// ============================================================
+// Utilitaires
+// ============================================================
+
+/**
+ * Retourne l'extension d'un fichier (sans le point).
+ * @param {string} filename
+ * @returns {string}
+ */
+function getExtension(filename) {
+  return filename.split(".").pop() || "";
+}
+
+/**
+ * Retourne une icône emoji selon le type de fichier.
+ * @param {string} filename
+ * @returns {string}
+ */
+function getFileTypeIcon(filename) {
+  const ext = getExtension(filename).toLowerCase();
+  const icons = {
+    zip: "🗜️", shp: "🗺️", geojson: "🌐", json: "🌐",
+    kml: "📍", csv: "📊", dxf: "📐", dwg: "📐",
+  };
+  return icons[ext] || "📄";
+}
+
+/**
+ * Formate une taille de fichier en format lisible.
+ * @param {number} bytes
+ * @returns {string}
+ */
+function formatFileSize(bytes) {
+  if (bytes < 1024) return `${bytes} o`;
+  if (bytes < 1048576) return `${(bytes / 1024).toFixed(1)} Ko`;
+  return `${(bytes / 1048576).toFixed(1)} Mo`;
+}
+
+/**
+ * Retourne un badge de type géométrique basé sur les features.
+ * @param {ol.Feature[]} features
+ * @returns {string}
+ */
+function getGeomTypeBadge(features) {
+  if (!features.length) return "?";
+  const types = new Set(features.map(f => f.getGeometry()?.getType()));
+  if (types.size === 1) return [...types][0];
+  return "Mixed";
+}
+
+
+/* ===== export.js ===== */
+/**
+ * export.js — Export des données SIG (GeoJSON, KML, CSV, DXF, SHP)
+ * Géoportail Maroc
+ *
+ * Export des couches dessinées, marqueurs et couches importées.
+ * Reprojection optionnelle vers WGS84 ou Merchich.
+ */
+
+// ============================================================
+// Initialisation du panel export
+// ============================================================
+document.addEventListener("DOMContentLoaded", () => {
+  document.getElementById("btn-do-export")?.addEventListener("click", doExport);
+});
+
+/**
+ * Construit la liste des couches importées dans le modal export.
+ */
+function buildExportLayersList() {
+  const container = document.getElementById("export-imported-layers");
+  if (!container) return;
+
+  container.innerHTML = APP.importedLayers.map((layer, idx) => `
+    <label class="checkbox-row">
+      <input type="checkbox" class="export-imported-cb" data-idx="${idx}" checked>
+      ${layer.name} <span style="color:var(--text-muted);font-size:10px;">(${layer.featureCount} entités)</span>
+    </label>
+  `).join("");
+}
+
+// ============================================================
+// Déclenchement de l'export
+// ============================================================
+
+/**
+ * Lance l'export selon le format sélectionné.
+ */
+async function doExport() {
+  const format = document.querySelector('input[name="export-format"]:checked')?.value;
+  const outProjection = document.getElementById("export-projection")?.value || "EPSG:4326";
+  const exportDrawn = document.getElementById("export-drawn")?.checked;
+  const exportMarkers = document.getElementById("export-markers")?.checked;
+
+  if (!format) {
+    showToast("Sélectionnez un format d'export", "warning");
+    return;
+  }
+
+  // Collecter toutes les features à exporter
+  const allFeatures = collectFeaturesForExport(exportDrawn, exportMarkers);
+
+  if (allFeatures.length === 0) {
+    showToast("Aucune donnée à exporter", "warning");
+    return;
+  }
+
+  try {
+    switch (format) {
+      case "geojson": exportGeoJSON(allFeatures, outProjection); break;
+      case "kml":     exportKML(allFeatures, outProjection);     break;
+      case "csv":     exportCSV(allFeatures, outProjection);     break;
+      case "dxf":     exportDXF(allFeatures, outProjection);     break;
+      case "shp":     await exportSHP(allFeatures, outProjection); break;
+    }
+
+    closeModal("modal-export");
+    showToast(`Export ${format.toUpperCase()} terminé`, "success");
+
+  } catch (err) {
+    console.error("[Export] Erreur :", err);
+    showToast("Erreur d'export : " + err.message, "error");
+  }
+}
+
+/**
+ * Collecte les features à exporter selon les options cochées.
+ *
+ * @param {boolean} includeDrawn
+ * @param {boolean} includeMarkers
+ * @returns {Array<{type: string, feature: ol.Feature}>}
+ */
+function collectFeaturesForExport(includeDrawn, includeMarkers) {
+  const result = [];
+
+  // Géométries dessinées
+  if (includeDrawn && APP.drawSource) {
+    const drawn = APP.drawSource.getFeatures().filter(
+      f => f.get("featureType") !== "measure"
+    );
+    drawn.forEach(f => result.push({ type: "drawn", feature: f }));
+  }
+
+  // Marqueurs
+  if (includeMarkers && APP.markerSource) {
+    APP.markerSource.getFeatures().forEach(f => {
+      result.push({ type: "marker", feature: f });
+    });
+  }
+
+  // Couches importées cochées
+  document.querySelectorAll(".export-imported-cb:checked").forEach(cb => {
+    const idx = parseInt(cb.dataset.idx);
+    const layer = APP.importedLayers[idx];
+    if (layer && layer.source) {
+      layer.source.getFeatures().forEach(f => {
+        result.push({ type: "imported", feature: f });
+      });
+    }
+  });
+
+  return result;
+}
+
+// ============================================================
+// Export GeoJSON
+// ============================================================
+
+/**
+ * Exporte les features en GeoJSON.
+ *
+ * @param {Array} items
+ * @param {string} outProjection
+ */
+function exportGeoJSON(items, outProjection) {
+  const format = new ol.format.GeoJSON();
+
+  const olFeatures = items.map(item => {
+    const clone = item.feature.clone();
+    // De Mercator vers projection cible
+    clone.getGeometry().transform("EPSG:3857", "EPSG:4326");
+    if (outProjection !== "EPSG:4326") {
+      // Re-transformer vers projection cible
+      const geom = clone.getGeometry();
+      transformGeometryToProjection(geom, "EPSG:4326", outProjection);
+    }
+    return clone;
+  });
+
+  const geojson = format.writeFeaturesObject(olFeatures, {
+    featureProjection: outProjection !== "EPSG:4326" ? outProjection : "EPSG:4326",
+    dataProjection: outProjection !== "EPSG:4326" ? outProjection : "EPSG:4326",
+  });
+
+  geojson._crs = { type: "name", properties: { name: outProjection } };
+
+  downloadFile(
+    JSON.stringify(geojson, null, 2),
+    "export_geoportail.geojson",
+    "application/geo+json"
+  );
+}
+
+// ============================================================
+// Export KML
+// ============================================================
+
+/**
+ * Exporte les features en KML (WGS84 obligatoire).
+ * @param {Array} items
+ * @param {string} outProjection - KML est toujours en WGS84
+ */
+function exportKML(items, outProjection) {
+  const format = new ol.format.KML({ writeStyles: true });
+
+  const olFeatures = items.map(item => {
+    const clone = item.feature.clone();
+    clone.getGeometry().transform("EPSG:3857", "EPSG:4326");
+    return clone;
+  });
+
+  const kml = format.writeFeatures(olFeatures, {
+    featureProjection: "EPSG:4326",
+    dataProjection: "EPSG:4326",
+  });
+
+  downloadFile(kml, "export_geoportail.kml", "application/vnd.google-earth.kml+xml");
+}
+
+// ============================================================
+// Export CSV
+// ============================================================
+
+/**
+ * Exporte les features en CSV (X, Y + attributs).
+ * @param {Array}  items
+ * @param {string} outProjection
+ */
+function exportCSV(items, outProjection) {
+  const rows = ["ID,Type,X,Y,Nom,Couleur,Attributs"];
+
+  items.forEach((item, idx) => {
+    const f = item.feature;
+    const geom = f.getGeometry();
+    if (!geom) return;
+
+    // Centroïde de la géométrie
+    let centroidCoord = getGeomCentroid(geom);
+
+    // Conversion de Mercator vers WGS84 puis vers projection cible
+    const wgs = mercatorToWGS84(centroidCoord[0], centroidCoord[1]);
+    let finalX = wgs.lon;
+    let finalY = wgs.lat;
+
+    if (outProjection !== "EPSG:4326") {
+      const res = convertCoords(wgs.lon, wgs.lat, "EPSG:4326", outProjection);
+      finalX = res.x;
+      finalY = res.y;
+    }
+
+    const name = f.get("name") || f.get("nom") || "";
+    const color = f.get("color") || "";
+    const attrs = JSON.stringify(f.getProperties()).replace(/"/g, '""');
+
+    rows.push(`${idx + 1},"${item.type}",${finalX.toFixed(6)},${finalY.toFixed(6)},"${name}","${color}","${attrs}"`);
+  });
+
+  downloadFile(rows.join("\n"), "export_geoportail.csv", "text/csv;charset=utf-8");
+}
+
+// ============================================================
+// Export DXF
+// ============================================================
+
+/**
+ * Exporte les features au format DXF (AutoCAD).
+ * Génère un DXF R2000 minimal avec les entités géométriques.
+ *
+ * @param {Array}  items
+ * @param {string} outProjection
+ */
+function exportDXF(items, outProjection) {
+  const layers = new Set(["0"]);
+  const entities = [];
+
+  items.forEach((item, idx) => {
+    const f = item.feature;
+    const geom = f.getGeometry();
+    if (!geom) return;
+
+    const layerName = (f.get("layer") || item.type || "0").replace(/[^a-zA-Z0-9_-]/g, "_");
+    layers.add(layerName);
+
+    const name = f.get("name") || "";
+    const dxfEntities = geometryToDXF(geom, layerName, outProjection);
+    entities.push(...dxfEntities);
+  });
+
+  const dxf = buildDXFFile(layers, entities);
+  downloadFile(dxf, "export_geoportail.dxf", "application/dxf");
+}
+
+/**
+ * Convertit une géométrie OL en entités DXF.
+ *
+ * @param {ol.geom.Geometry} geom
+ * @param {string}           layer
+ * @param {string}           outProjection
+ * @returns {string[]}       Tableau de blocs d'entités DXF
+ */
+function geometryToDXF(geom, layer, outProjection) {
+  const entities = [];
+  const type = geom.getType();
+
+  /**
+   * Convertit des coordonnées Mercator vers la projection de sortie.
+   * @param {number} mx
+   * @param {number} my
+   * @returns {[number, number]}
+   */
+  function toOut(mx, my) {
+    const wgs = mercatorToWGS84(mx, my);
+    if (outProjection === "EPSG:4326") {
+      return [wgs.lon, wgs.lat];
+    }
+    const res = convertCoords(wgs.lon, wgs.lat, "EPSG:4326", outProjection);
+    return [res.x, res.y];
+  }
+
+  if (type === "Point") {
+    const [mx, my] = geom.getCoordinates();
+    const [x, y] = toOut(mx, my);
+    entities.push(dxfPoint(x, y, layer));
+
+  } else if (type === "LineString") {
+    const coords = geom.getCoordinates().map(([mx, my]) => toOut(mx, my));
+    entities.push(dxfLWPolyline(coords, false, layer));
+
+  } else if (type === "Polygon") {
+    const rings = geom.getCoordinates();
+    rings.forEach(ring => {
+      const coords = ring.map(([mx, my]) => toOut(mx, my));
+      entities.push(dxfLWPolyline(coords, true, layer));
+    });
+
+  } else if (type === "MultiPoint") {
+    geom.getPoints().forEach(pt => {
+      const [mx, my] = pt.getCoordinates();
+      const [x, y] = toOut(mx, my);
+      entities.push(dxfPoint(x, y, layer));
+    });
+
+  } else if (type === "MultiLineString") {
+    geom.getLineStrings().forEach(ls => {
+      const coords = ls.getCoordinates().map(([mx, my]) => toOut(mx, my));
+      entities.push(dxfLWPolyline(coords, false, layer));
+    });
+
+  } else if (type === "MultiPolygon") {
+    geom.getPolygons().forEach(poly => {
+      poly.getCoordinates().forEach(ring => {
+        const coords = ring.map(([mx, my]) => toOut(mx, my));
+        entities.push(dxfLWPolyline(coords, true, layer));
+      });
+    });
+
+  } else if (type === "Circle") {
+    // Exporter le cercle comme LWPOLYLINE approximatif
+    const center = geom.getCenter();
+    const radiusMerc = geom.getRadius();
+    const circleCoords = [];
+    for (let a = 0; a <= 360; a += 5) {
+      const rad = a * Math.PI / 180;
+      circleCoords.push(toOut(
+        center[0] + radiusMerc * Math.cos(rad),
+        center[1] + radiusMerc * Math.sin(rad)
+      ));
+    }
+    entities.push(dxfLWPolyline(circleCoords, true, layer));
+  }
+
+  return entities;
+}
+
+// ---- Générateurs d'entités DXF ----
+
+function dxfPoint(x, y, layer) {
+  return `0\nPOINT\n8\n${layer}\n10\n${x.toFixed(6)}\n20\n${y.toFixed(6)}\n30\n0.0\n`;
+}
+
+function dxfLWPolyline(coords, closed, layer) {
+  const flag = closed ? 1 : 0;
+  let entity = `0\nLWPOLYLINE\n8\n${layer}\n90\n${coords.length}\n70\n${flag}\n`;
+  coords.forEach(([x, y]) => {
+    entity += `10\n${x.toFixed(6)}\n20\n${y.toFixed(6)}\n`;
+  });
+  return entity;
+}
+
+/**
+ * Assemble le fichier DXF complet.
+ *
+ * @param {Set<string>} layers   - Noms des layers
+ * @param {string[]}    entities - Blocs d'entités
+ * @returns {string}
+ */
+function buildDXFFile(layers, entities) {
+  // En-tête DXF minimal
+  let dxf = `0\nSECTION\n2\nHEADER\n9\n$ACADVER\n1\nAC1015\n0\nENDSEC\n`;
+
+  // Section TABLES (layers)
+  dxf += `0\nSECTION\n2\nTABLES\n0\nTABLE\n2\nLAYER\n70\n${layers.size}\n`;
+  layers.forEach(name => {
+    dxf += `0\nLAYER\n2\n${name}\n70\n0\n62\n7\n6\nCONTINUOUS\n`;
+  });
+  dxf += `0\nENDTAB\n0\nENDSEC\n`;
+
+  // Section ENTITIES
+  dxf += `0\nSECTION\n2\nENTITIES\n`;
+  entities.forEach(e => { dxf += e; });
+  dxf += `0\nENDSEC\n0\nEOF\n`;
+
+  return dxf;
+}
+
+// ============================================================
+// Export Shapefile (ZIP)
+// ============================================================
+
+/**
+ * Exporte les features en Shapefile ZIP (shp + shx + dbf + prj).
+ * Implémentation manuelle du format Shapefile binaire.
+ *
+ * @param {Array}  items
+ * @param {string} outProjection
+ */
+async function exportSHP(items, outProjection) {
+  if (typeof JSZip === "undefined") {
+    throw new Error("JSZip non chargé — impossible de créer l'archive ZIP");
+  }
+
+  // Séparer les points, lignes, polygones
+  const points = [], lines = [], polys = [];
+
+  items.forEach(item => {
+    const f = item.feature;
+    const geom = f.getGeometry();
+    if (!geom) return;
+
+    const type = geom.getType();
+    const coordsWGS = getGeomCoordsWGS84(geom, outProjection);
+
+    if (type === "Point" || type === "MultiPoint") {
+      points.push({ f, coordsWGS, type });
+    } else if (type === "LineString" || type === "MultiLineString") {
+      lines.push({ f, coordsWGS, type });
+    } else if (type === "Polygon" || type === "MultiPolygon" || type === "Circle") {
+      polys.push({ f, coordsWGS, type });
+    }
+  });
+
+  const zip = new JSZip();
+
+  // Exporter chaque type dans un SHP séparé si non vide
+  const groups = [
+    { name: "points", items: points, shpType: 1 },
+    { name: "lines",  items: lines,  shpType: 3 },
+    { name: "polys",  items: polys,  shpType: 5 },
+  ];
+
+  for (const group of groups) {
+    if (group.items.length === 0) continue;
+
+    try {
+      const { shpBuf, shxBuf } = buildSHPBuffers(group.items, group.shpType);
+      const dbfBuf = buildDBFBuffer(group.items);
+      const prjContent = getPRJContent(outProjection);
+
+      zip.file(`${group.name}.shp`, shpBuf);
+      zip.file(`${group.name}.shx`, shxBuf);
+      zip.file(`${group.name}.dbf`, dbfBuf);
+      zip.file(`${group.name}.prj`, prjContent);
+    } catch (err) {
+      console.warn(`[Export SHP] Erreur groupe ${group.name}:`, err);
+    }
+  }
+
+  const zipBlob = await zip.generateAsync({ type: "blob" });
+  downloadFile(zipBlob, "export_geoportail.zip", "application/zip");
+}
+
+/**
+ * Construit les buffers .shp et .shx pour un ensemble de features.
+ * Format Shapefile ESRI binaire (Big-endian / Little-endian mixte).
+ *
+ * @param {Array}  items
+ * @param {number} shpType - 1=Point, 3=PolyLine, 5=Polygon
+ * @returns {{ shpBuf: ArrayBuffer, shxBuf: ArrayBuffer }}
+ */
+function buildSHPBuffers(items, shpType) {
+  const records = [];
+  let totalContentBytes = 0;
+
+  // Construire les enregistrements
+  items.forEach((item, idx) => {
+    const { coordsWGS } = item;
+    let recBytes;
+
+    if (shpType === 1) {
+      // Point (5 * 8 bytes = 40 bytes: type + x + y)
+      const pt = Array.isArray(coordsWGS[0]) ? coordsWGS[0] : coordsWGS;
+      recBytes = new ArrayBuffer(20); // type(4) + x(8) + y(8)
+      const view = new DataView(recBytes);
+      view.setInt32(0, 1, true);  // shape type
+      view.setFloat64(4, pt[0], true);  // x
+      view.setFloat64(12, pt[1], true); // y
+
+    } else if (shpType === 3 || shpType === 5) {
+      // PolyLine / Polygon
+      // Structure : type(4) + bbox(32) + numParts(4) + numPoints(4) + parts(4*np) + points(16*n)
+      const parts = Array.isArray(coordsWGS[0][0]) ? coordsWGS : [coordsWGS];
+      const numParts = parts.length;
+      const numPoints = parts.reduce((sum, p) => sum + p.length, 0);
+      const recSize = 4 + 32 + 4 + 4 + numParts * 4 + numPoints * 16;
+      recBytes = new ArrayBuffer(recSize);
+      const view = new DataView(recBytes);
+
+      // Bounding box
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      parts.forEach(ring => ring.forEach(([x, y]) => {
+        minX = Math.min(minX, x); minY = Math.min(minY, y);
+        maxX = Math.max(maxX, x); maxY = Math.max(maxY, y);
+      }));
+
+      let offset = 0;
+      view.setInt32(offset, shpType, true); offset += 4;
+      view.setFloat64(offset, minX, true); offset += 8;
+      view.setFloat64(offset, minY, true); offset += 8;
+      view.setFloat64(offset, maxX, true); offset += 8;
+      view.setFloat64(offset, maxY, true); offset += 8;
+      view.setInt32(offset, numParts, true); offset += 4;
+      view.setInt32(offset, numPoints, true); offset += 4;
+
+      // Parts index
+      let ptIdx = 0;
+      parts.forEach(ring => {
+        view.setInt32(offset, ptIdx, true); offset += 4;
+        ptIdx += ring.length;
+      });
+
+      // Points
+      parts.forEach(ring => {
+        ring.forEach(([x, y]) => {
+          view.setFloat64(offset, x, true); offset += 8;
+          view.setFloat64(offset, y, true); offset += 8;
+        });
+      });
+    } else {
+      recBytes = new ArrayBuffer(0);
+    }
+
+    records.push({ bytes: recBytes, recordNumber: idx + 1 });
+    totalContentBytes += 8 + recBytes.byteLength; // header(8) + content
+  });
+
+  // Fichier SHP : header(100) + records
+  const shpSize = 100 + totalContentBytes;
+  const shpBuf = new ArrayBuffer(shpSize);
+  const shpView = new DataView(shpBuf);
+
+  // Bounding box globale
+  let gMinX = Infinity, gMinY = Infinity, gMaxX = -Infinity, gMaxY = -Infinity;
+  items.forEach(item => {
+    const coords = item.coordsWGS;
+    const flat = Array.isArray(coords[0][0]) ? coords.flat() : coords;
+    flat.forEach(([x, y]) => {
+      gMinX = Math.min(gMinX, x); gMinY = Math.min(gMinY, y);
+      gMaxX = Math.max(gMaxX, x); gMaxY = Math.max(gMaxY, y);
+    });
+  });
+
+  // En-tête SHP (100 bytes)
+  shpView.setInt32(0, 9994, false); // File code (Big-endian)
+  shpView.setInt32(24, shpSize / 2, false); // File length en mots 16-bits
+  shpView.setInt32(28, 1000, true); // Version
+  shpView.setInt32(32, shpType, true); // Shape type
+  shpView.setFloat64(36, gMinX, true); // Bbox Xmin
+  shpView.setFloat64(44, gMinY, true); // Bbox Ymin
+  shpView.setFloat64(52, gMaxX, true); // Bbox Xmax
+  shpView.setFloat64(60, gMaxY, true); // Bbox Ymax
+
+  // Fichier SHX : header(100) + index(8 * n)
+  const shxBuf = new ArrayBuffer(100 + records.length * 8);
+  const shxView = new DataView(shxBuf);
+  shxView.setInt32(0, 9994, false);
+  shxView.setInt32(24, (100 + records.length * 8) / 2, false);
+  shxView.setInt32(28, 1000, true);
+  shxView.setInt32(32, shpType, true);
+  shxView.setFloat64(36, gMinX, true);
+  shxView.setFloat64(44, gMinY, true);
+  shxView.setFloat64(52, gMaxX, true);
+  shxView.setFloat64(60, gMaxY, true);
+
+  // Écriture des records
+  let shpOffset = 100;
+  records.forEach((rec, i) => {
+    const contentLen = rec.bytes.byteLength;
+
+    // SHX index
+    shxView.setInt32(100 + i * 8, shpOffset / 2, false);       // Offset en mots
+    shxView.setInt32(100 + i * 8 + 4, contentLen / 2, false);  // Longueur en mots
+
+    // SHP record header
+    shpView.setInt32(shpOffset, rec.recordNumber, false); // Record number
+    shpView.setInt32(shpOffset + 4, contentLen / 2, false); // Content length
+    shpOffset += 8;
+
+    // SHP record content
+    const src = new Uint8Array(rec.bytes);
+    const dst = new Uint8Array(shpBuf, shpOffset, contentLen);
+    dst.set(src);
+    shpOffset += contentLen;
+  });
+
+  return { shpBuf, shxBuf };
+}
+
+/**
+ * Construit le fichier DBF avec les attributs des features.
+ * @param {Array} items
+ * @returns {ArrayBuffer}
+ */
+function buildDBFBuffer(items) {
+  // Champs : ID, NOM, TYPE (champs minimaux)
+  const fields = [
+    { name: "ID",   type: "N", length: 10, decimals: 0 },
+    { name: "NOM",  type: "C", length: 50, decimals: 0 },
+    { name: "TYPE", type: "C", length: 20, decimals: 0 },
+  ];
+
+  const fieldCount = fields.length;
+  const recordSize = 1 + fields.reduce((sum, f) => sum + f.length, 0);
+  const headerSize = 32 + fieldCount * 32 + 1;
+  const dbfSize = headerSize + items.length * recordSize + 1;
+
+  const buf = new ArrayBuffer(dbfSize);
+  const view = new DataView(buf);
+  const bytes = new Uint8Array(buf);
+
+  // En-tête DBF
+  view.setUint8(0, 3); // Version dBASE III
+  const now = new Date();
+  view.setUint8(1, now.getFullYear() - 1900);
+  view.setUint8(2, now.getMonth() + 1);
+  view.setUint8(3, now.getDate());
+  view.setInt32(4, items.length, true);       // Nb records
+  view.setInt16(8, headerSize, true);          // Taille header
+  view.setInt16(10, recordSize, true);         // Taille record
+
+  // Définition des champs
+  fields.forEach((field, i) => {
+    const base = 32 + i * 32;
+    writeASCII(bytes, base, field.name.padEnd(11, "\0"), 11);
+    bytes[base + 11] = field.type.charCodeAt(0);
+    bytes[base + 16] = field.length;
+    bytes[base + 17] = field.decimals;
+  });
+
+  // Fin d'en-tête
+  bytes[headerSize - 1] = 0x0D;
+
+  // Records
+  items.forEach((item, i) => {
+    const base = headerSize + i * recordSize;
+    bytes[base] = 0x20; // Espace = non supprimé
+
+    let offset = base + 1;
+    const f = item.feature;
+
+    // ID
+    const idStr = String(i + 1).padStart(fields[0].length, " ");
+    writeASCII(bytes, offset, idStr, fields[0].length);
+    offset += fields[0].length;
+
+    // NOM
+    const nom = (f.get("name") || f.get("nom") || "").substring(0, 50).padEnd(50, " ");
+    writeASCII(bytes, offset, nom, 50);
+    offset += 50;
+
+    // TYPE
+    const type = (item.type || "").substring(0, 20).padEnd(20, " ");
+    writeASCII(bytes, offset, type, 20);
+    offset += 20;
+  });
+
+  // EOF marker
+  bytes[dbfSize - 1] = 0x1A;
+
+  return buf;
+}
+
+/**
+ * Retourne le contenu .PRJ pour une projection donnée.
+ * @param {string} epsg
+ * @returns {string}
+ */
+function getPRJContent(epsg) {
+  const prjStrings = {
+    "EPSG:4326":
+      'GEOGCS["GCS_WGS_1984",DATUM["D_WGS_1984",SPHEROID["WGS_1984",6378137.0,298.257223563]],' +
+      'PRIMEM["Greenwich",0.0],UNIT["Degree",0.0174532925199433]]',
+    "EPSG:26191":
+      'PROJCS["Merchich_Zone_1",GEOGCS["GCS_Merchich",...],PROJECTION["Lambert_Conformal_Conic"],' +
+      'PARAMETER["False_Easting",500000.0],PARAMETER["False_Northing",300000.0]]',
+    "EPSG:26192":
+      'PROJCS["Merchich_Zone_2",GEOGCS["GCS_Merchich",...],PROJECTION["Lambert_Conformal_Conic"],' +
+      'PARAMETER["False_Easting",500000.0],PARAMETER["False_Northing",300000.0]]',
+    "EPSG:26193":
+      'PROJCS["Merchich_Zone_3",GEOGCS["GCS_Merchich",...],PROJECTION["Lambert_Conformal_Conic"],' +
+      'PARAMETER["False_Easting",1200000.0],PARAMETER["False_Northing",400000.0]]',
+    "EPSG:26194":
+      'PROJCS["Merchich_Zone_4",GEOGCS["GCS_Merchich",...],PROJECTION["Lambert_Conformal_Conic"],' +
+      'PARAMETER["False_Easting",1500000.0],PARAMETER["False_Northing",400000.0]]',
+  };
+  return prjStrings[epsg] || prjStrings["EPSG:4326"];
+}
+
+// ============================================================
+// Utilitaires
+// ============================================================
+
+/**
+ * Écrit une chaîne ASCII dans un Uint8Array.
+ * @param {Uint8Array} buf
+ * @param {number}     offset
+ * @param {string}     str
+ * @param {number}     maxLen
+ */
+function writeASCII(buf, offset, str, maxLen) {
+  for (let i = 0; i < Math.min(str.length, maxLen); i++) {
+    buf[offset + i] = str.charCodeAt(i) & 0xFF;
+  }
+}
+
+/**
+ * Calcule le centroïde d'une géométrie OL.
+ * @param {ol.geom.Geometry} geom
+ * @returns {Array<number>} [x, y] EPSG:3857
+ */
+function getGeomCentroid(geom) {
+  const type = geom.getType();
+  if (type === "Point") return geom.getCoordinates();
+
+  const extent = geom.getExtent();
+  return [
+    (extent[0] + extent[2]) / 2,
+    (extent[1] + extent[3]) / 2,
+  ];
+}
+
+/**
+ * Retourne les coordonnées WGS84 (ou dans outProjection) d'une géométrie.
+ * @param {ol.geom.Geometry} geom
+ * @param {string}           outProjection
+ * @returns {Array}
+ */
+function getGeomCoordsWGS84(geom, outProjection) {
+  const type = geom.getType();
+
+  function mercToOut(mx, my) {
+    const wgs = mercatorToWGS84(mx, my);
+    if (outProjection === "EPSG:4326") return [wgs.lon, wgs.lat];
+    const res = convertCoords(wgs.lon, wgs.lat, "EPSG:4326", outProjection);
+    return [res.x, res.y];
+  }
+
+  if (type === "Point") {
+    const [mx, my] = geom.getCoordinates();
+    return [mercToOut(mx, my)];
+  } else if (type === "LineString") {
+    return geom.getCoordinates().map(([mx, my]) => mercToOut(mx, my));
+  } else if (type === "Polygon") {
+    return geom.getCoordinates().map(ring =>
+      ring.map(([mx, my]) => mercToOut(mx, my))
+    );
+  } else if (type === "Circle") {
+    const center = geom.getCenter();
+    const radius = geom.getRadius();
+    const points = [];
+    for (let a = 0; a <= 360; a += 5) {
+      const rad = a * Math.PI / 180;
+      points.push(mercToOut(
+        center[0] + radius * Math.cos(rad),
+        center[1] + radius * Math.sin(rad)
+      ));
+    }
+    return [points];
+  }
+  return [[mercToOut(...geom.getFirstCoordinate())]];
+}
+
+/**
+ * Transforme une géométrie OL d'une projection vers une autre (in-place).
+ * @param {ol.geom.Geometry} geom
+ * @param {string}           from
+ * @param {string}           to
+ */
+function transformGeometryToProjection(geom, from, to) {
+  geom.applyTransform((input, output, dimension) => {
+    for (let i = 0; i < input.length; i += dimension) {
+      const res = proj4(from, to, [input[i], input[i + 1]]);
+      output[i] = res[0];
+      output[i + 1] = res[1];
+    }
+    return output;
+  });
+}
+
+
+/* ===== ui.js ===== */
+/**
+ * ui.js — Gestion des panels, toolbar et événements UI
+ * Géoportail Maroc
+ */
+
+// ============================================================
+// Initialisation après le chargement de tous les modules
+// ============================================================
+document.addEventListener("DOMContentLoaded", () => {
+  initSidebar();
+  initTabs();
+  initToolbar();
+  initModalImport();
+  initModalExport();
+});
+
+// ============================================================
+// Sidebar
+// ============================================================
+function initSidebar() {
+  const btn = document.getElementById("btn-toggle-sidebar");
+  const sidebar = document.getElementById("sidebar");
+
+  btn.addEventListener("click", () => {
+    sidebar.classList.toggle("open");
+    sidebar.classList.toggle("closed");
+    // Déclencher un resize de la carte pour qu'elle se redimensionne
+    setTimeout(() => APP.map && APP.map.updateSize(), 250);
+  });
+}
+
+// ============================================================
+// Onglets sidebar
+// ============================================================
+function initTabs() {
+  document.querySelectorAll(".tab-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const tabId = btn.dataset.tab;
+
+      document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+      document.querySelectorAll(".tab-content").forEach(c => c.classList.remove("active"));
+
+      btn.classList.add("active");
+      document.getElementById(`tab-${tabId}`).classList.add("active");
+    });
+  });
+}
+
+// ============================================================
+// Toolbar — Outils
+// ============================================================
+function initToolbar() {
+  // Bouton Sélection
+  document.getElementById("btn-select").addEventListener("click", () => {
+    setActiveTool("select");
+    removeDrawInteraction();
+    closeFloatingPanel();
+  });
+
+  // Bouton Point
+  document.getElementById("btn-point").addEventListener("click", () => {
+    setActiveTool("point");
+    removeDrawInteraction();
+    if (typeof activatePointTool === "function") activatePointTool();
+    closeFloatingPanel();
+  });
+
+  // Bouton Polyligne
+  document.getElementById("btn-line").addEventListener("click", () => {
+    setActiveTool("line");
+    if (typeof startDraw === "function") startDraw("LineString");
+    openFloatingPanel("Polyligne", buildDrawPanel("line"));
+  });
+
+  // Bouton Polygone
+  document.getElementById("btn-polygon").addEventListener("click", () => {
+    setActiveTool("polygon");
+    if (typeof startDraw === "function") startDraw("Polygon");
+    openFloatingPanel("Polygone", buildDrawPanel("polygon"));
+  });
+
+  // Bouton Rectangle
+  document.getElementById("btn-rectangle").addEventListener("click", () => {
+    setActiveTool("rectangle");
+    if (typeof startDraw === "function") startDraw("Box");
+    openFloatingPanel("Rectangle", buildDrawPanel("rectangle"));
+  });
+
+  // Bouton Cercle
+  document.getElementById("btn-circle").addEventListener("click", () => {
+    setActiveTool("circle");
+    if (typeof startDraw === "function") startDraw("Circle");
+    openFloatingPanel("Cercle", buildDrawPanel("circle"));
+  });
+
+  // Bouton Modifier
+  document.getElementById("btn-modify").addEventListener("click", () => {
+    setActiveTool("modify");
+    removeDrawInteraction();
+    if (typeof activateModify === "function") activateModify();
+    closeFloatingPanel();
+  });
+
+  // Bouton Mesurer distance
+  document.getElementById("btn-measure-dist").addEventListener("click", () => {
+    setActiveTool("measure-dist");
+    if (typeof startMeasureDistance === "function") startMeasureDistance();
+    openFloatingPanel("Mesure de distance", buildMeasurePanel());
+  });
+
+  // Bouton Effacer tout
+  document.getElementById("btn-clear-draw").addEventListener("click", () => {
+    if (confirm("Effacer toutes les géométries dessinées ?")) {
+      if (APP.drawSource) APP.drawSource.clear();
+      APP.drawnFeatures = [];
+      setActiveTool("select");
+      removeDrawInteraction();
+      closeFloatingPanel();
+      showToast("Dessin effacé", "info");
+    }
+  });
+
+  // Bouton Import
+  document.getElementById("btn-import").addEventListener("click", () => {
+    openModal("modal-import");
+  });
+
+  // Bouton Export
+  document.getElementById("btn-export").addEventListener("click", () => {
+    openModal("modal-export");
+    if (typeof buildExportLayersList === "function") buildExportLayersList();
+  });
+
+  // Bouton Localiser (navigation par coordonnées)
+  document.getElementById("btn-goto").addEventListener("click", () => {
+    openFloatingPanel("Aller à un point", buildNavigationPanel());
+    if (typeof initNavigationPanel === "function") initNavigationPanel();
+  });
+
+  // Bouton Convertir
+  document.getElementById("btn-converter").addEventListener("click", () => {
+    openFloatingPanel("Conversion de coordonnées", buildConverterPanel());
+    if (typeof initConverterPanel === "function") initConverterPanel();
+  });
+
+  // Bouton Effacer toutes les couches (sidebar)
+  document.getElementById("btn-clear-layers").addEventListener("click", () => {
+    if (APP.importedLayers.length === 0) return;
+    if (confirm("Supprimer toutes les couches importées ?")) {
+      APP.importedLayers.forEach(l => APP.map.removeLayer(l.olLayer));
+      APP.importedLayers = [];
+      renderLayersList();
+      showToast("Couches supprimées", "info");
+    }
+  });
+
+  // Bouton Effacer tous les points
+  document.getElementById("btn-clear-points").addEventListener("click", () => {
+    if (typeof clearAllMarkers === "function") clearAllMarkers();
+  });
+
+  // Bouton Effacer historique
+  document.getElementById("btn-clear-history").addEventListener("click", () => {
+    if (typeof clearConversionHistory === "function") clearConversionHistory();
+  });
+
+  // Export points CSV / GeoJSON
+  document.getElementById("btn-export-points-csv").addEventListener("click", () => {
+    if (typeof exportMarkersCSV === "function") exportMarkersCSV();
+  });
+  document.getElementById("btn-export-points-geojson").addEventListener("click", () => {
+    if (typeof exportMarkersGeoJSON === "function") exportMarkersGeoJSON();
+  });
+}
+
+// ============================================================
+// Panel flottant contextuel
+// ============================================================
+
+/**
+ * Ouvre le panel flottant avec un titre et du contenu HTML.
+ * @param {string} title
+ * @param {string} htmlContent
+ */
+function openFloatingPanel(title, htmlContent) {
+  document.getElementById("floating-panel-title").textContent = title;
+  document.getElementById("floating-panel-content").innerHTML = htmlContent;
+  document.getElementById("floating-panel").classList.remove("hidden");
+}
+
+/** Ferme le panel flottant. */
+function closeFloatingPanel() {
+  document.getElementById("floating-panel").classList.add("hidden");
+}
+
+// Bouton fermer panel
+document.addEventListener("DOMContentLoaded", () => {
+  document.getElementById("btn-close-panel").addEventListener("click", () => {
+    closeFloatingPanel();
+    if (APP.currentTool !== "select") setActiveTool("select");
+    removeDrawInteraction();
+  });
+});
+
+// ============================================================
+// Contenu HTML des panels contextuels
+// ============================================================
+
+/**
+ * Construit le HTML du panel de dessin avec affichage des mesures.
+ * @param {string} type - "line", "polygon", "rectangle", "circle"
+ * @returns {string}
+ */
+function buildDrawPanel(type) {
+  const isSurface = ["polygon", "rectangle", "circle"].includes(type);
+  const isLength = ["line", "polygon", "rectangle"].includes(type);
+
+  return `
+    <div class="form-section">
+      <label>Attributs</label>
+      <div class="form-row">
+        <label>Nom / Description</label>
+        <input type="text" id="draw-attr-name" placeholder="Optionnel...">
+      </div>
+      <div class="form-row">
+        <label>Couleur</label>
+        <input type="color" id="draw-attr-color" value="#e94560" style="width:60px;height:28px;padding:2px;cursor:pointer;">
+      </div>
+    </div>
+    ${isSurface ? `
+    <div class="draw-info-box" id="draw-area-box">
+      <div class="di-label">Surface</div>
+      <div class="di-value" id="draw-area-value">—</div>
+    </div>` : ""}
+    ${isLength ? `
+    <div class="draw-info-box" id="draw-length-box">
+      <div class="di-label">Longueur / Périmètre</div>
+      <div class="di-value" id="draw-length-value">—</div>
+    </div>` : ""}
+    ${type === "circle" ? `
+    <div class="draw-info-box" id="draw-radius-box">
+      <div class="di-label">Rayon</div>
+      <div class="di-value" id="draw-radius-value">—</div>
+    </div>` : ""}
+    <p style="font-size:11px;color:var(--text-muted);margin-top:8px;">
+      ${type === "line" ? "Cliquez pour ajouter des points. Double-clic pour terminer." : ""}
+      ${type === "polygon" ? "Cliquez pour ajouter des sommets. Double-clic pour fermer." : ""}
+      ${type === "rectangle" ? "Cliquez le 1er coin puis le coin opposé." : ""}
+      ${type === "circle" ? "Cliquez le centre, faites glisser pour le rayon." : ""}
+    </p>
+    <button class="btn-secondary" onclick="removeDrawInteraction();setActiveTool('select');closeFloatingPanel();" style="margin-top:8px;">
+      Terminer
+    </button>
+  `;
+}
+
+/**
+ * Construit le HTML du panel de mesure de distance.
+ * @returns {string}
+ */
+function buildMeasurePanel() {
+  return `
+    <p style="font-size:11px;color:var(--text-muted);margin-bottom:12px;">
+      Cliquez sur la carte pour définir les points de mesure.<br>
+      Double-clic pour terminer.
+    </p>
+    <div class="draw-info-box">
+      <div class="di-label">Distance totale</div>
+      <div class="di-value" id="measure-total-dist">—</div>
+    </div>
+    <div id="measure-segments" style="margin-top:8px;"></div>
+    <button class="btn-secondary" id="btn-reset-measure" style="margin-top:8px;">
+      Réinitialiser
+    </button>
+    <button class="btn-secondary" onclick="removeDrawInteraction();setActiveTool('select');closeFloatingPanel();" style="margin-top:4px;">
+      Terminer
+    </button>
+  `;
+}
+
+/**
+ * Construit le HTML du panel de navigation.
+ * @returns {string}
+ */
+function buildNavigationPanel() {
+  return `
+    <div class="form-section">
+      <label>Système de coordonnées</label>
+      <select id="nav-epsg">
+        <option value="EPSG:4326-DD">WGS84 Décimal (DD)</option>
+        <option value="EPSG:4326-DMS">WGS84 DMS</option>
+        <option value="EPSG:26191">Merchich Zone 1</option>
+        <option value="EPSG:26192" selected>Merchich Zone 2</option>
+        <option value="EPSG:26193">Merchich Zone 3</option>
+        <option value="EPSG:26194">Merchich Zone 4</option>
+      </select>
+    </div>
+
+    <div class="form-row-inline" id="nav-dd-fields">
+      <div class="form-row">
+        <label>Longitude / Est (X)</label>
+        <input type="number" id="nav-x" step="any" placeholder="-7.5898">
+      </div>
+      <div class="form-row">
+        <label>Latitude / Nord (Y)</label>
+        <input type="number" id="nav-y" step="any" placeholder="33.5731">
+      </div>
+    </div>
+
+    <div id="nav-dms-fields" style="display:none">
+      <div class="form-row">
+        <label>Longitude (D° M' S&quot; [E/O])</label>
+        <input type="text" id="nav-dms-lon" placeholder="7°35'23.28&quot;O">
+      </div>
+      <div class="form-row">
+        <label>Latitude (D° M' S&quot; [N/S])</label>
+        <input type="text" id="nav-dms-lat" placeholder="33°34'23.16&quot;N">
+      </div>
+    </div>
+
+    <button class="btn-primary" id="btn-nav-go">Centrer la carte</button>
+    <button class="btn-secondary" id="btn-nav-add-marker" style="margin-top:4px;">
+      Ajouter aux points marqués
+    </button>
+
+    <div id="nav-result" style="display:none;margin-top:12px;padding-top:10px;border-top:1px solid var(--border)">
+      <p style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:6px;">Coordonnées du point :</p>
+      <div id="nav-result-content"></div>
+    </div>
+  `;
+}
+
+/**
+ * Construit le HTML du panel de conversion de coordonnées.
+ * @returns {string}
+ */
+function buildConverterPanel() {
+  return `
+    <div class="conv-input-section">
+      <div class="form-row">
+        <label>Saisie (WGS84 décimal)</label>
+        <div class="form-row-inline">
+          <div class="form-row">
+            <label>Longitude</label>
+            <input type="number" id="conv-lon" step="any" placeholder="-7.5898">
+          </div>
+          <div class="form-row">
+            <label>Latitude</label>
+            <input type="number" id="conv-lat" step="any" placeholder="33.5731">
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;gap:6px;">
+        <button class="btn-primary" id="btn-conv-compute" style="flex:1;">Convertir</button>
+        <button class="btn-secondary" id="btn-conv-pick" style="flex:1;" title="Cliquer sur la carte">
+          📍 Carte
+        </button>
+      </div>
+    </div>
+
+    <table class="conv-table" id="conv-results-table">
+      <thead>
+        <tr>
+          <th>Système</th>
+          <th>Valeur</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="conv-results-body">
+        <tr><td colspan="3" style="text-align:center;color:var(--text-muted);padding:12px;">
+          Saisissez des coordonnées pour convertir
+        </td></tr>
+      </tbody>
+    </table>
+  `;
+}
+
+// ============================================================
+// Modals
+// ============================================================
+
+/**
+ * Ouvre une modal par son ID.
+ * @param {string} modalId
+ */
+function openModal(modalId) {
+  document.getElementById(modalId).classList.remove("hidden");
+}
+
+/**
+ * Ferme une modal par son ID.
+ * @param {string} modalId
+ */
+function closeModal(modalId) {
+  document.getElementById(modalId).classList.add("hidden");
+}
+
+function initModalImport() {
+  // Bouton fermer
+  document.querySelectorAll("#modal-import .modal-close").forEach(btn => {
+    btn.addEventListener("click", () => closeModal("modal-import"));
+  });
+
+  // Clic hors modal
+  document.getElementById("modal-import").addEventListener("click", (e) => {
+    if (e.target === e.currentTarget) closeModal("modal-import");
+  });
+}
+
+function initModalExport() {
+  document.querySelectorAll("#modal-export .modal-close").forEach(btn => {
+    btn.addEventListener("click", () => closeModal("modal-export"));
+  });
+
+  document.getElementById("modal-export").addEventListener("click", (e) => {
+    if (e.target === e.currentTarget) closeModal("modal-export");
+  });
+}
+
+// ============================================================
+// Rendu de la liste des couches (sidebar)
+// ============================================================
+
+/**
+ * Met à jour l'affichage de la liste des couches importées.
+ */
+function renderLayersList() {
+  const container = document.getElementById("layers-list");
+
+  if (!APP.importedLayers || APP.importedLayers.length === 0) {
+    container.innerHTML = '<div class="empty-state">Aucune couche importée</div>';
+    return;
+  }
+
+  container.innerHTML = APP.importedLayers.map((layer, idx) => `
+    <div class="layer-item" data-idx="${idx}">
+      <span class="layer-visibility ${layer.olLayer.getVisible() ? "visible" : ""}"
+            onclick="toggleLayerVisibility(${idx})" title="Basculer visibilité">
+        ${layer.olLayer.getVisible() ? "●" : "○"}
+      </span>
+      <span class="layer-name" title="${layer.name}">${layer.name}</span>
+      <span class="layer-type-badge">${layer.type}</span>
+      <button class="icon-btn danger" onclick="removeImportedLayer(${idx})" title="Supprimer">✕</button>
+    </div>
+  `).join("");
+}
+
+/**
+ * Bascule la visibilité d'une couche importée.
+ * @param {number} idx
+ */
+function toggleLayerVisibility(idx) {
+  const layer = APP.importedLayers[idx];
+  if (!layer) return;
+  const visible = !layer.olLayer.getVisible();
+  layer.olLayer.setVisible(visible);
+  renderLayersList();
+}
+
+/**
+ * Supprime une couche importée.
+ * @param {number} idx
+ */
+function removeImportedLayer(idx) {
+  const layer = APP.importedLayers[idx];
+  if (!layer) return;
+  APP.map.removeLayer(layer.olLayer);
+  APP.importedLayers.splice(idx, 1);
+  renderLayersList();
+  showToast(`Couche "${layer.name}" supprimée`, "info");
+}
+
+  </script>
+</body>
+</html>
