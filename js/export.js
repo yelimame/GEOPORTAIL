@@ -334,12 +334,12 @@ function geometryToDXF(geom, layer, outProjection) {
 // ---- Générateurs d'entités DXF ----
 
 function dxfPoint(x, y, layer) {
-  return `0\nPOINT\n8\n${layer}\n10\n${x.toFixed(6)}\n20\n${y.toFixed(6)}\n30\n0.0\n`;
+  return `0\nPOINT\n100\nAcDbEntity\n8\n${layer}\n100\nAcDbPoint\n10\n${x.toFixed(6)}\n20\n${y.toFixed(6)}\n30\n0.0\n`;
 }
 
 function dxfLWPolyline(coords, closed, layer) {
   const flag = closed ? 1 : 0;
-  let entity = `0\nLWPOLYLINE\n8\n${layer}\n90\n${coords.length}\n70\n${flag}\n`;
+  let entity = `0\nLWPOLYLINE\n100\nAcDbEntity\n8\n${layer}\n100\nAcDbPolyline\n90\n${coords.length}\n70\n${flag}\n`;
   coords.forEach(([x, y]) => {
     entity += `10\n${x.toFixed(6)}\n20\n${y.toFixed(6)}\n`;
   });
@@ -347,22 +347,32 @@ function dxfLWPolyline(coords, closed, layer) {
 }
 
 /**
- * Assemble le fichier DXF complet.
+ * Assemble le fichier DXF complet (AC1015 / R2000).
  *
  * @param {Set<string>} layers   - Noms des layers
  * @param {string[]}    entities - Blocs d'entités
  * @returns {string}
  */
 function buildDXFFile(layers, entities) {
-  // En-tête DXF minimal
+  // En-tête
   let dxf = `0\nSECTION\n2\nHEADER\n9\n$ACADVER\n1\nAC1015\n0\nENDSEC\n`;
 
-  // Section TABLES (layers)
-  dxf += `0\nSECTION\n2\nTABLES\n0\nTABLE\n2\nLAYER\n70\n${layers.size}\n`;
+  // Section TABLES : LTYPE puis LAYER
+  dxf += `0\nSECTION\n2\nTABLES\n`;
+
+  // Table LTYPE (obligatoire en AC1015 — au moins CONTINUOUS)
+  dxf += `0\nTABLE\n2\nLTYPE\n70\n1\n`;
+  dxf += `0\nLTYPE\n2\nCONTINUOUS\n70\n0\n3\nSolid line\n72\n65\n73\n0\n40\n0.0\n`;
+  dxf += `0\nENDTAB\n`;
+
+  // Table LAYER
+  dxf += `0\nTABLE\n2\nLAYER\n70\n${layers.size}\n`;
   layers.forEach(name => {
-    dxf += `0\nLAYER\n2\n${name}\n70\n0\n62\n7\n6\nCONTINUOUS\n`;
+    dxf += `0\nLAYER\n100\nAcDbSymbolTableRecord\n100\nAcDbLayerTableRecord\n2\n${name}\n70\n0\n62\n7\n6\nCONTINUOUS\n`;
   });
-  dxf += `0\nENDTAB\n0\nENDSEC\n`;
+  dxf += `0\nENDTAB\n`;
+
+  dxf += `0\nENDSEC\n`;
 
   // Section ENTITIES
   dxf += `0\nSECTION\n2\nENTITIES\n`;

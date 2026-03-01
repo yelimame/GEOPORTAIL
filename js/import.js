@@ -402,6 +402,24 @@ function parseDXF(dxfText, srcProjection = "EPSG:4326") {
       const entityType = pair.value;
       if (entityType === "ENDSEC" || entityType === "EOF") break;
 
+      // POLYLINE ancien style : lire les VERTEX qui suivent jusqu'à SEQEND
+      if (entityType === "POLYLINE") {
+        const result = parseDXFPolyline(lines, i, srcProjection);
+        if (result) {
+          features.push(result.feature);
+          i = result.nextIndex;
+        } else {
+          // Avancer jusqu'au SEQEND
+          while (i < lines.length) {
+            const c = parseInt(lines[i]?.trim());
+            const v = lines[i + 1]?.trim();
+            i += 2;
+            if (c === 0 && (v === "SEQEND" || v === "ENDSEC" || v === "EOF")) break;
+          }
+        }
+        continue;
+      }
+
       const feature = parseDXFEntity(entityType, lines, i, srcProjection);
       if (feature) {
         features.push(feature.feature);
@@ -411,6 +429,77 @@ function parseDXF(dxfText, srcProjection = "EPSG:4326") {
   }
 
   return features;
+}
+
+/**
+ * Parse un POLYLINE ancien style (AutoCAD pré-2000).
+ * Les sommets sont dans des entités VERTEX séparées jusqu'à SEQEND.
+ *
+ * @param {string[]} lines
+ * @param {number}   startI  - Index après le 0\nPOLYLINE\n
+ * @param {string}   srcProjection
+ * @returns {{ feature: ol.Feature, nextIndex: number }|null}
+ */
+function parseDXFPolyline(lines, startI, srcProjection) {
+  let i = startI;
+  let layer = "0";
+  let isClosed = false;
+  const vertices = [];
+
+  // Lire le header POLYLINE jusqu'au premier VERTEX ou SEQEND
+  while (i < lines.length) {
+    const code = parseInt(lines[i]?.trim());
+    const value = lines[i + 1]?.trim();
+    if (value === undefined) break;
+    i += 2;
+    if (code === 0) { i -= 2; break; }
+    if (code === 8) layer = value;
+    if (code === 70) isClosed = (parseInt(value) & 1) === 1;
+  }
+
+  // Lire les VERTEX
+  while (i < lines.length) {
+    const code = parseInt(lines[i]?.trim());
+    const value = lines[i + 1]?.trim();
+    if (value === undefined) break;
+    if (code === 0 && value === "SEQEND") { i += 2; break; }
+    if (code === 0 && value === "VERTEX") {
+      i += 2;
+      let vx = 0, vy = 0;
+      while (i < lines.length) {
+        const c = parseInt(lines[i]?.trim());
+        const v = lines[i + 1]?.trim();
+        if (v === undefined) break;
+        i += 2;
+        if (c === 0) { i -= 2; break; }
+        if (c === 10) vx = parseFloat(v) || 0;
+        if (c === 20) vy = parseFloat(v) || 0;
+      }
+      vertices.push({ x: vx, y: vy });
+    } else {
+      i += 2;
+    }
+  }
+
+  if (vertices.length < 2) return null;
+
+  const mercVerts = vertices.map(v => {
+    const m = dxfCoordsToMerc(v.x, v.y, srcProjection);
+    return [m.x, m.y];
+  });
+
+  let geom;
+  if (isClosed) {
+    mercVerts.push(mercVerts[0]);
+    geom = new ol.geom.Polygon([mercVerts]);
+  } else {
+    geom = new ol.geom.LineString(mercVerts);
+  }
+
+  return {
+    feature: new ol.Feature({ geometry: geom, featureType: "imported", layer }),
+    nextIndex: i,
+  };
 }
 
 /**
@@ -490,8 +579,7 @@ function parseDXFEntity(type, lines, startI, srcProjection = "EPSG:4326") {
         break;
       }
 
-      case "LWPOLYLINE":
-      case "POLYLINE": {
+      case "LWPOLYLINE": {
         if (vertices.length < 2) break;
         const mercVerts = vertices.map(v => {
           const m = dxfCoordsToMerc(v.x, v.y, srcProjection);
