@@ -156,7 +156,7 @@ async function importFile(file, userProjection) {
   } else if (ext === "csv") {
     await importCSV(file, userProjection);
   } else if (ext === "dxf") {
-    await importDXF(file);
+    await importDXF(file, userProjection);
   } else {
     throw new Error(`Format non supporté : .${ext}`);
   }
@@ -349,9 +349,10 @@ async function importCSV(file, userProjection) {
  *
  * @param {File} file
  */
-async function importDXF(file) {
+async function importDXF(file, userProjection = "auto") {
   const text = await file.text();
-  const features = parseDXF(text);
+  const srcProj = userProjection !== "auto" ? userProjection : "EPSG:4326";
+  const features = parseDXF(text, srcProj);
 
   if (features.length === 0) {
     throw new Error("Aucune entité géométrique trouvée dans le DXF");
@@ -368,7 +369,7 @@ async function importDXF(file) {
  * @param {string} dxfText
  * @returns {ol.Feature[]}
  */
-function parseDXF(dxfText) {
+function parseDXF(dxfText, srcProjection = "EPSG:4326") {
   const features = [];
 
   // Normalisation des fins de ligne
@@ -401,7 +402,7 @@ function parseDXF(dxfText) {
       const entityType = pair.value;
       if (entityType === "ENDSEC" || entityType === "EOF") break;
 
-      const feature = parseDXFEntity(entityType, lines, i);
+      const feature = parseDXFEntity(entityType, lines, i, srcProjection);
       if (feature) {
         features.push(feature.feature);
         i = feature.nextIndex;
@@ -420,7 +421,7 @@ function parseDXF(dxfText) {
  * @param {number}   startI  - Index de départ
  * @returns {{ feature: ol.Feature, nextIndex: number }|null}
  */
-function parseDXFEntity(type, lines, startI) {
+function parseDXFEntity(type, lines, startI, srcProjection = "EPSG:4326") {
   let i = startI;
   const props = {};
   const vertices = [];
@@ -469,7 +470,7 @@ function parseDXFEntity(type, lines, startI) {
   try {
     switch (type) {
       case "POINT": {
-        const merc = dxfCoordsToMerc(x, y);
+        const merc = dxfCoordsToMerc(x, y, srcProjection);
         olFeature = new ol.Feature({
           geometry: new ol.geom.Point([merc.x, merc.y]),
           featureType: "imported",
@@ -479,8 +480,8 @@ function parseDXFEntity(type, lines, startI) {
       }
 
       case "LINE": {
-        const p1 = dxfCoordsToMerc(x, y);
-        const p2 = dxfCoordsToMerc(x2, y2);
+        const p1 = dxfCoordsToMerc(x, y, srcProjection);
+        const p2 = dxfCoordsToMerc(x2, y2, srcProjection);
         olFeature = new ol.Feature({
           geometry: new ol.geom.LineString([[p1.x, p1.y], [p2.x, p2.y]]),
           featureType: "imported",
@@ -493,7 +494,7 @@ function parseDXFEntity(type, lines, startI) {
       case "POLYLINE": {
         if (vertices.length < 2) break;
         const mercVerts = vertices.map(v => {
-          const m = dxfCoordsToMerc(v.x, v.y);
+          const m = dxfCoordsToMerc(v.x, v.y, srcProjection);
           return [m.x, m.y];
         });
 
@@ -516,7 +517,7 @@ function parseDXFEntity(type, lines, startI) {
 
       case "CIRCLE": {
         // Approximation du cercle par 64 points
-        const center = dxfCoordsToMerc(x, y);
+        const center = dxfCoordsToMerc(x, y, srcProjection);
         const circlePoints = [];
         for (let a = 0; a <= 360; a += 360 / 64) {
           const rad = a * Math.PI / 180;
@@ -544,21 +545,25 @@ function parseDXFEntity(type, lines, startI) {
 }
 
 /**
- * Convertit des coordonnées DXF (supposées WGS84 ou planes) vers Mercator.
- * Pour les fichiers DXF géographiques (lon/lat), conversion directe.
- * Pour les DXF en coordonnées locales (Marchich), l'utilisateur doit spécifier.
+ * Convertit des coordonnées DXF vers Mercator (EPSG:3857).
+ * Utilise proj4 avec la projection source spécifiée par l'utilisateur.
  *
- * @param {number} x - Longitude ou Est
- * @param {number} y - Latitude ou Nord
+ * @param {number} x            - Longitude/Est dans srcProjection
+ * @param {number} y            - Latitude/Nord dans srcProjection
+ * @param {string} srcProjection - Code EPSG source (ex: "EPSG:26191", "EPSG:4326")
  * @returns {{ x: number, y: number }} Coordonnées EPSG:3857
  */
-function dxfCoordsToMerc(x, y) {
-  // Détection automatique : si x dans [-180, 180] et y dans [-90, 90] → WGS84
-  if (x >= -180 && x <= 180 && y >= -90 && y <= 90) {
-    return wgs84ToMercator(x, y);
+function dxfCoordsToMerc(x, y, srcProjection = "EPSG:4326") {
+  try {
+    const [mx, my] = proj4(srcProjection, "EPSG:3857", [x, y]);
+    return { x: mx, y: my };
+  } catch (e) {
+    // Fallback : si WGS84 détectable
+    if (x >= -180 && x <= 180 && y >= -90 && y <= 90) {
+      return wgs84ToMercator(x, y);
+    }
+    return { x, y };
   }
-  // Sinon, supposer Mercator direct (cas rares)
-  return { x, y };
 }
 
 // ============================================================
