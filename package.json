@@ -1,0 +1,56 @@
+{
+  "name": "geoportail-maroc",
+  "version": "1.0.0",
+  "description": "Géoportail web orienté Maroc avec support des projections Merchich (zones 1-4) et WGS84",
+  "author": "Géoportail Maroc",
+  "license": "MIT",
+  "keywords": [
+    "geoportal",
+    "maroc",
+    "morocco",
+    "openlayers",
+    "proj4",
+    "merchich",
+    "gis",
+    "shapefile",
+    "dxf",
+    "geojson",
+    "kml"
+  ],
+  "scripts": {
+    "start": "npx serve . -l 8080",
+    "dev": "npx live-server --port=8080 --open=index.html"
+  },
+  "devDependencies": {
+    "live-server": "^1.2.2",
+    "serve": "^14.2.0"
+  },
+  "dependencies": {
+    "ol": "^9.2.4",
+    "proj4": "^2.10.0",
+    "shpjs": "^4.0.4",
+    "jszip": "^3.10.1"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "cdn": {
+    "openlayers": "https://cdn.jsdelivr.net/npm/ol@9.2.4/dist/ol.js",
+    "proj4": "https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.10.0/proj4.js",
+    "shpjs": "https://unpkg.com/shpjs@4.0.4/dist/shp.js",
+    "jszip": "https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"
+  },
+  "notes": {
+    "architecture": "100% client-side, aucun backend requis",
+    "projections": [
+      "EPSG:4326 — WGS84 géographique",
+      "EPSG:3857 — Web Mercator (OpenLayers interne)",
+      "EPSG:26191 — Merchich Zone 1 (Nord Maroc)",
+      "EPSG:26192 — Merchich Zone 2 (Centre-Nord, Casablanca/Rabat)",
+      "EPSG:26193 — Merchich Zone 3 (Centre-Sud, Marrakech/Agadir)",
+      "EPSG:26194 — Merchich Zone 4 (Sahara marocain)"
+    ],
+    "formats_import": ["SHP (ZIP)", "DXF", "GeoJSON", "KML", "CSV"],
+    "formats_export": ["GeoJSON", "KML", "CSV", "DXF", "SHP (ZIP)"]
+  }
+}

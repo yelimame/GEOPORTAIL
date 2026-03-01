@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Géoportail Maroc</title>
+
+  <!-- OpenLayers 9.x -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@9.2.4/ol.css">
+  <script src="https://cdn.jsdelivr.net/npm/ol@9.2.4/dist/ol.js"></script>
+
+  <!-- proj4js pour les projections Merchich -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.10.0/proj4.js"></script>
+
+  <!-- ol-proj4 intégration -->
+  <script src="https://cdn.jsdelivr.net/npm/ol@9.2.4/proj/proj4.js" defer></script>
+
+  <!-- shpjs pour lecture Shapefile -->
+  <script src="https://unpkg.com/shpjs@4.0.4/dist/shp.js"></script>
+
+  <!-- JSZip pour export SHP -->
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+
+  <!-- CSS principal -->
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- ========== TOOLBAR SUPÉRIEURE ========== -->
+  <header id="toolbar">
+    <div id="toolbar-left">
+      <div id="logo">
+        <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+          <circle cx="14" cy="14" r="13" stroke="#e94560" stroke-width="2"/>
+          <path d="M7 14 Q14 6 21 14 Q14 22 7 14Z" fill="#e94560" opacity="0.7"/>
+          <circle cx="14" cy="14" r="3" fill="#fff"/>
+        </svg>
+        <span id="app-title">Géoportail Maroc</span>
+      </div>
+    </div>
+
+    <div id="toolbar-center">
+      <!-- Groupe outils de dessin -->
+      <div class="tool-group">
+        <button class="tool-btn" id="btn-select" title="Sélection" data-tool="select">
+          <svg width="16" height="16" viewBox="0 0 16 16"><path d="M2 2l8 12 2-5 5-2z" fill="currentColor"/></svg>
+        </button>
+        <button class="tool-btn" id="btn-point" title="Ajouter un point" data-tool="point">
+          <svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="4" fill="currentColor"/><circle cx="8" cy="8" r="2" fill="#1a1a2e"/></svg>
+        </button>
+        <button class="tool-btn" id="btn-line" title="Tracer une polyligne" data-tool="line">
+          <svg width="16" height="16" viewBox="0 0 16 16"><polyline points="2,14 6,4 10,10 14,2" stroke="currentColor" stroke-width="2" fill="none"/></svg>
+        </button>
+        <button class="tool-btn" id="btn-polygon" title="Tracer un polygone" data-tool="polygon">
+          <svg width="16" height="16" viewBox="0 0 16 16"><polygon points="8,2 14,6 12,14 4,14 2,6" stroke="currentColor" stroke-width="2" fill="none"/></svg>
+        </button>
+        <button class="tool-btn" id="btn-rectangle" title="Tracer un rectangle" data-tool="rectangle">
+          <svg width="16" height="16" viewBox="0 0 16 16"><rect x="2" y="4" width="12" height="8" stroke="currentColor" stroke-width="2" fill="none"/></svg>
+        </button>
+        <button class="tool-btn" id="btn-circle" title="Tracer un cercle" data-tool="circle">
+          <svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="2" fill="none"/></svg>
+        </button>
+        <button class="tool-btn" id="btn-modify" title="Modifier géométrie" data-tool="modify">
+          <svg width="16" height="16" viewBox="0 0 16 16"><path d="M2 12L10 4l2 2L4 14z" fill="currentColor"/><circle cx="11" cy="5" r="2" fill="#e94560"/></svg>
+        </button>
+        <button class="tool-btn" id="btn-measure-dist" title="Mesurer distance" data-tool="measure-dist">
+          <svg width="16" height="16" viewBox="0 0 16 16"><line x1="2" y1="8" x2="14" y2="8" stroke="currentColor" stroke-width="2"/><line x1="2" y1="5" x2="2" y2="11" stroke="currentColor" stroke-width="2"/><line x1="14" y1="5" x2="14" y2="11" stroke="currentColor" stroke-width="2"/></svg>
+        </button>
+        <button class="tool-btn danger" id="btn-clear-draw" title="Effacer tout le dessin">
+          <svg width="16" height="16" viewBox="0 0 16 16"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="2"/></svg>
+        </button>
+      </div>
+
+      <div class="toolbar-separator"></div>
+
+      <!-- Groupe import/export -->
+      <div class="tool-group">
+        <button class="tool-btn" id="btn-import" title="Importer un fichier">
+          <svg width="16" height="16" viewBox="0 0 16 16"><path d="M8 2v8M5 7l3 3 3-3M2 12v2h12v-2" stroke="currentColor" stroke-width="2" fill="none"/></svg>
+          Import
+        </button>
+        <button class="tool-btn" id="btn-export" title="Exporter des données">
+          <svg width="16" height="16" viewBox="0 0 16 16"><path d="M8 10V2M5 5l3-3 3 3M2 12v2h12v-2" stroke="currentColor" stroke-width="2" fill="none"/></svg>
+          Export
+        </button>
+      </div>
+
+      <div class="toolbar-separator"></div>
+
+      <!-- Outils navigation -->
+      <div class="tool-group">
+        <button class="tool-btn" id="btn-goto" title="Aller à un point">
+          <svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="7" r="4" stroke="currentColor" stroke-width="2" fill="none"/><line x1="8" y1="11" x2="8" y2="15" stroke="currentColor" stroke-width="2"/></svg>
+          Localiser
+        </button>
+        <button class="tool-btn" id="btn-converter" title="Convertir coordonnées">
+          <svg width="16" height="16" viewBox="0 0 16 16"><path d="M2 8h12M10 5l4 3-4 3M6 5L2 8l4 3" stroke="currentColor" stroke-width="2" fill="none"/></svg>
+          Convertir
+        </button>
+      </div>
+    </div>
+
+    <div id="toolbar-right">
+      <!-- Switcher fond de carte -->
+      <div id="basemap-switcher">
+        <label class="switch-label">Fond :</label>
+        <div class="basemap-options">
+          <button class="basemap-btn active" data-basemap="satellite" title="Satellite ESRI">
+            <svg width="14" height="14" viewBox="0 0 14 14"><rect width="14" height="14" fill="#2c5f8a"/><rect x="3" y="3" width="8" height="8" fill="#4a9b6f" opacity="0.6"/></svg>
+            Satellite
+          </button>
+          <button class="basemap-btn" data-basemap="osm" title="OpenStreetMap">
+            <svg width="14" height="14" viewBox="0 0 14 14"><rect width="14" height="14" fill="#e8d8c0"/><path d="M2 7h10M7 2v10" stroke="#888" stroke-width="1"/></svg>
+            OSM
+          </button>
+          <button class="basemap-btn" data-basemap="none" title="Aucun fond">
+            Aucun
+          </button>
+        </div>
+      </div>
+
+      <!-- Sélecteur zone Merchich pour affichage coordonnées -->
+      <div id="projection-selector">
+        <label class="switch-label">Zone :</label>
+        <select id="select-zone" title="Zone Merchich pour affichage">
+          <option value="EPSG:4326">WGS84</option>
+          <option value="EPSG:26191">Merchich Z1</option>
+          <option value="EPSG:26192" selected>Merchich Z2</option>
+          <option value="EPSG:26193">Merchich Z3</option>
+          <option value="EPSG:26194">Merchich Z4</option>
+        </select>
+      </div>
+
+      <!-- Bouton sidebar -->
+      <button id="btn-toggle-sidebar" title="Afficher/Masquer le panneau">
+        <svg width="18" height="18" viewBox="0 0 18 18"><rect x="2" y="4" width="14" height="2" fill="currentColor"/><rect x="2" y="8" width="14" height="2" fill="currentColor"/><rect x="2" y="12" width="14" height="2" fill="currentColor"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- ========== CONTENEUR PRINCIPAL ========== -->
+  <div id="main-container">
+
+    <!-- ========== SIDEBAR GAUCHE ========== -->
+    <aside id="sidebar" class="open">
+      <div id="sidebar-tabs">
+        <button class="tab-btn active" data-tab="layers">Couches</button>
+        <button class="tab-btn" data-tab="points">Points</button>
+        <button class="tab-btn" data-tab="history">Historique</button>
+      </div>
+
+      <!-- Tab: Couches importées -->
+      <div id="tab-layers" class="tab-content active">
+        <div class="panel-header">
+          <span>Couches importées</span>
+          <button id="btn-clear-layers" class="icon-btn danger" title="Supprimer toutes les couches">✕</button>
+        </div>
+        <div id="layers-list">
+          <div class="empty-state">Aucune couche importée</div>
+        </div>
+      </div>
+
+      <!-- Tab: Points marqués -->
+      <div id="tab-points" class="tab-content">
+        <div class="panel-header">
+          <span>Points marqués</span>
+          <div class="panel-actions">
+            <button id="btn-export-points-csv" class="icon-btn" title="Exporter CSV">CSV</button>
+            <button id="btn-export-points-geojson" class="icon-btn" title="Exporter GeoJSON">GeoJSON</button>
+            <button id="btn-clear-points" class="icon-btn danger" title="Supprimer tous les points">✕</button>
+          </div>
+        </div>
+        <div id="points-list">
+          <div class="empty-state">Aucun point marqué.<br>Utilisez l'outil Point (●) pour en ajouter.</div>
+        </div>
+      </div>
+
+      <!-- Tab: Historique conversions -->
+      <div id="tab-history" class="tab-content">
+        <div class="panel-header">
+          <span>Historique conversions</span>
+          <button id="btn-clear-history" class="icon-btn danger" title="Vider l'historique">✕</button>
+        </div>
+        <div id="history-list">
+          <div class="empty-state">Aucune conversion enregistrée</div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ========== CARTE PRINCIPALE ========== -->
+    <div id="map-wrapper">
+      <div id="map"></div>
+
+      <!-- Panel flottant contextuel (droite) -->
+      <div id="floating-panel" class="hidden">
+        <div id="floating-panel-header">
+          <span id="floating-panel-title">Panneau</span>
+          <button id="btn-close-panel" class="icon-btn">✕</button>
+        </div>
+        <div id="floating-panel-content">
+          <!-- Contenu dynamique selon l'outil actif -->
+        </div>
+      </div>
+
+      <!-- Popup carte -->
+      <div id="map-popup" class="ol-popup">
+        <button id="popup-closer" class="ol-popup-closer">✕</button>
+        <div id="popup-content"></div>
+      </div>
+
+      <!-- Tooltip de mesure (affiché pendant le dessin) -->
+      <div id="measure-tooltip" class="measure-tooltip hidden"></div>
+    </div>
+
+  </div><!-- /main-container -->
+
+  <!-- ========== BARRE DE STATUT ========== -->
+  <footer id="statusbar">
+    <div id="status-coords">
+      <span class="status-label">WGS84 :</span>
+      <span id="coord-wgs84">— , —</span>
+      <span class="status-sep">|</span>
+      <span class="status-label" id="coord-zone-label">Merchich Z2 :</span>
+      <span id="coord-zone">— , —</span>
+    </div>
+    <div id="status-center">
+      <span id="status-tool">Outil : Sélection</span>
+    </div>
+    <div id="status-right">
+      <span class="status-label">Zoom :</span>
+      <span id="status-zoom">—</span>
+      <span class="status-sep">|</span>
+      <span class="status-label">Échelle :</span>
+      <span id="status-scale">—</span>
+    </div>
+  </footer>
+
+  <!-- ========== MODALS ========== -->
+
+  <!-- Modal Import -->
+  <div id="modal-import" class="modal hidden">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h2>Importer des données</h2>
+        <button class="modal-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <div id="drop-zone">
+          <div class="drop-icon">
+            <svg width="48" height="48" viewBox="0 0 48 48"><path d="M24 8v24M16 20l8-12 8 12M8 36v4h32v-4" stroke="#e94560" stroke-width="3" fill="none" stroke-linecap="round"/></svg>
+          </div>
+          <p>Glissez-déposez vos fichiers ici</p>
+          <p class="hint">Formats supportés : SHP (ZIP), DXF, GeoJSON, KML, CSV</p>
+          <button id="btn-browse" class="btn-primary">Parcourir...</button>
+          <input type="file" id="file-input" multiple accept=".zip,.shp,.dxf,.geojson,.json,.kml,.csv" style="display:none">
+        </div>
+        <div id="import-options" class="hidden">
+          <h3>Options d'import</h3>
+          <div class="form-row">
+            <label>Projection source :</label>
+            <select id="import-projection">
+              <option value="auto">Détection automatique</option>
+              <option value="EPSG:4326">WGS84 (EPSG:4326)</option>
+              <option value="EPSG:3857">Web Mercator (EPSG:3857)</option>
+              <option value="EPSG:26191">Merchich Zone 1 (EPSG:26191)</option>
+              <option value="EPSG:26192">Merchich Zone 2 (EPSG:26192)</option>
+              <option value="EPSG:26193">Merchich Zone 3 (EPSG:26193)</option>
+              <option value="EPSG:26194">Merchich Zone 4 (EPSG:26194)</option>
+            </select>
+          </div>
+          <div id="import-file-list"></div>
+          <button id="btn-do-import" class="btn-primary">Importer</button>
+        </div>
+        <div id="import-progress" class="hidden">
+          <div class="progress-bar"><div class="progress-fill" id="import-progress-fill"></div></div>
+          <p id="import-status-text">Chargement...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Export -->
+  <div id="modal-export" class="modal hidden">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h2>Exporter des données</h2>
+        <button class="modal-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-row">
+          <label>Couches à exporter :</label>
+          <div id="export-layers-list">
+            <label class="checkbox-row"><input type="checkbox" id="export-drawn" checked> Géométries dessinées</label>
+            <label class="checkbox-row"><input type="checkbox" id="export-markers" checked> Points marqués</label>
+            <div id="export-imported-layers"></div>
+          </div>
+        </div>
+        <div class="form-row">
+          <label>Format :</label>
+          <div class="radio-group">
+            <label class="radio-row"><input type="radio" name="export-format" value="geojson" checked> GeoJSON</label>
+            <label class="radio-row"><input type="radio" name="export-format" value="kml"> KML</label>
+            <label class="radio-row"><input type="radio" name="export-format" value="csv"> CSV (X, Y + attributs)</label>
+            <label class="radio-row"><input type="radio" name="export-format" value="dxf"> DXF (AutoCAD)</label>
+            <label class="radio-row"><input type="radio" name="export-format" value="shp"> Shapefile (ZIP)</label>
+          </div>
+        </div>
+        <div class="form-row">
+          <label>Projection de sortie :</label>
+          <select id="export-projection">
+            <option value="EPSG:4326">WGS84 (EPSG:4326)</option>
+            <option value="EPSG:26191">Merchich Zone 1 (EPSG:26191)</option>
+            <option value="EPSG:26192">Merchich Zone 2 (EPSG:26192)</option>
+            <option value="EPSG:26193">Merchich Zone 3 (EPSG:26193)</option>
+            <option value="EPSG:26194">Merchich Zone 4 (EPSG:26194)</option>
+          </select>
+        </div>
+        <button id="btn-do-export" class="btn-primary">Télécharger</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Notification toast -->
+  <div id="toast-container"></div>
+
+  <!-- ========== SCRIPTS ========== -->
+  <script src="js/projections.js"></script>
+  <script src="js/calculations.js"></script>
+  <script src="js/main.js"></script>
+  <script src="js/markers.js"></script>
+  <script src="js/drawing.js"></script>
+  <script src="js/navigation.js"></script>
+  <script src="js/converter.js"></script>
+  <script src="js/import.js"></script>
+  <script src="js/export.js"></script>
+  <script src="js/ui.js"></script>
+
+</body>
+</html>
