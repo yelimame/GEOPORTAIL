@@ -4200,7 +4200,7 @@ async function importFile(file, userProjection) {
   } else if (ext === "csv") {
     await importCSV(file, userProjection);
   } else if (ext === "dxf") {
-    await importDXF(file);
+    await importDXF(file, userProjection);
   } else {
     throw new Error(`Format non supporté : .${ext}`);
   }
@@ -4393,9 +4393,10 @@ async function importCSV(file, userProjection) {
  *
  * @param {File} file
  */
-async function importDXF(file) {
+async function importDXF(file, userProjection = "auto") {
   const text = await file.text();
-  const features = parseDXF(text);
+  const srcProj = userProjection !== "auto" ? userProjection : "EPSG:4326";
+  const features = parseDXF(text, srcProj);
 
   if (features.length === 0) {
     throw new Error("Aucune entité géométrique trouvée dans le DXF");
@@ -4407,12 +4408,12 @@ async function importDXF(file) {
 
 /**
  * Parse un fichier DXF et retourne des features OpenLayers (EPSG:3857).
- * Hypothèse : les coordonnées DXF sont en WGS84 ou Merchich selon la config.
  *
  * @param {string} dxfText
+ * @param {string} srcProjection - Code EPSG source (ex: "EPSG:26191")
  * @returns {ol.Feature[]}
  */
-function parseDXF(dxfText) {
+function parseDXF(dxfText, srcProjection = "EPSG:4326") {
   const features = [];
 
   // Normalisation des fins de ligne
@@ -4445,7 +4446,24 @@ function parseDXF(dxfText) {
       const entityType = pair.value;
       if (entityType === "ENDSEC" || entityType === "EOF") break;
 
-      const feature = parseDXFEntity(entityType, lines, i);
+      // POLYLINE ancien style : vertices dans des entités VERTEX séparées
+      if (entityType === "POLYLINE") {
+        const result = parseDXFPolyline(lines, i, srcProjection);
+        if (result) {
+          features.push(result.feature);
+          i = result.nextIndex;
+        } else {
+          while (i < lines.length) {
+            const c = parseInt(lines[i]?.trim());
+            const v = lines[i + 1]?.trim();
+            i += 2;
+            if (c === 0 && (v === "SEQEND" || v === "ENDSEC" || v === "EOF")) break;
+          }
+        }
+        continue;
+      }
+
+      const feature = parseDXFEntity(entityType, lines, i, srcProjection);
       if (feature) {
         features.push(feature.feature);
         i = feature.nextIndex;
@@ -4457,14 +4475,79 @@ function parseDXF(dxfText) {
 }
 
 /**
+ * Parse un POLYLINE ancien style (AutoCAD pré-2000).
+ * Les sommets sont dans des entités VERTEX séparées jusqu'à SEQEND.
+ */
+function parseDXFPolyline(lines, startI, srcProjection) {
+  let i = startI;
+  let layer = "0";
+  let isClosed = false;
+  const vertices = [];
+
+  while (i < lines.length) {
+    const code = parseInt(lines[i]?.trim());
+    const value = lines[i + 1]?.trim();
+    if (value === undefined) break;
+    i += 2;
+    if (code === 0) { i -= 2; break; }
+    if (code === 8) layer = value;
+    if (code === 70) isClosed = (parseInt(value) & 1) === 1;
+  }
+
+  while (i < lines.length) {
+    const code = parseInt(lines[i]?.trim());
+    const value = lines[i + 1]?.trim();
+    if (value === undefined) break;
+    if (code === 0 && value === "SEQEND") { i += 2; break; }
+    if (code === 0 && value === "VERTEX") {
+      i += 2;
+      let vx = 0, vy = 0;
+      while (i < lines.length) {
+        const c = parseInt(lines[i]?.trim());
+        const v = lines[i + 1]?.trim();
+        if (v === undefined) break;
+        i += 2;
+        if (c === 0) { i -= 2; break; }
+        if (c === 10) vx = parseFloat(v) || 0;
+        if (c === 20) vy = parseFloat(v) || 0;
+      }
+      vertices.push({ x: vx, y: vy });
+    } else {
+      i += 2;
+    }
+  }
+
+  if (vertices.length < 2) return null;
+
+  const mercVerts = vertices.map(v => {
+    const m = dxfCoordsToMerc(v.x, v.y, srcProjection);
+    return [m.x, m.y];
+  });
+
+  let geom;
+  if (isClosed) {
+    mercVerts.push(mercVerts[0]);
+    geom = new ol.geom.Polygon([mercVerts]);
+  } else {
+    geom = new ol.geom.LineString(mercVerts);
+  }
+
+  return {
+    feature: new ol.Feature({ geometry: geom, featureType: "imported", layer }),
+    nextIndex: i,
+  };
+}
+
+/**
  * Parse une entité DXF et retourne la feature OL correspondante.
  *
  * @param {string}   type    - Type d'entité DXF (LINE, POINT, LWPOLYLINE, ...)
  * @param {string[]} lines   - Tableau des lignes du fichier
  * @param {number}   startI  - Index de départ
+ * @param {string}   srcProjection
  * @returns {{ feature: ol.Feature, nextIndex: number }|null}
  */
-function parseDXFEntity(type, lines, startI) {
+function parseDXFEntity(type, lines, startI, srcProjection = "EPSG:4326") {
   let i = startI;
   const props = {};
   const vertices = [];
@@ -4498,8 +4581,8 @@ function parseDXFEntity(type, lines, startI) {
     else if (code === 40) radius = parseFloat(value) || 0;
     else if (code === 70) isClosed = (parseInt(value) & 1) === 1;
 
-    // LWPOLYLINE vertices
-    if (type === "LWPOLYLINE" || type === "POLYLINE") {
+    // LWPOLYLINE vertices (inline)
+    if (type === "LWPOLYLINE") {
       if (code === 10) {
         vertices.push({ x: parseFloat(value) || 0, y: y });
       } else if (code === 20 && vertices.length > 0) {
@@ -4513,7 +4596,7 @@ function parseDXFEntity(type, lines, startI) {
   try {
     switch (type) {
       case "POINT": {
-        const merc = dxfCoordsToMerc(x, y);
+        const merc = dxfCoordsToMerc(x, y, srcProjection);
         olFeature = new ol.Feature({
           geometry: new ol.geom.Point([merc.x, merc.y]),
           featureType: "imported",
@@ -4523,8 +4606,8 @@ function parseDXFEntity(type, lines, startI) {
       }
 
       case "LINE": {
-        const p1 = dxfCoordsToMerc(x, y);
-        const p2 = dxfCoordsToMerc(x2, y2);
+        const p1 = dxfCoordsToMerc(x, y, srcProjection);
+        const p2 = dxfCoordsToMerc(x2, y2, srcProjection);
         olFeature = new ol.Feature({
           geometry: new ol.geom.LineString([[p1.x, p1.y], [p2.x, p2.y]]),
           featureType: "imported",
@@ -4533,16 +4616,15 @@ function parseDXFEntity(type, lines, startI) {
         break;
       }
 
-      case "LWPOLYLINE":
-      case "POLYLINE": {
+      case "LWPOLYLINE": {
         if (vertices.length < 2) break;
         const mercVerts = vertices.map(v => {
-          const m = dxfCoordsToMerc(v.x, v.y);
+          const m = dxfCoordsToMerc(v.x, v.y, srcProjection);
           return [m.x, m.y];
         });
 
         if (isClosed) {
-          mercVerts.push(mercVerts[0]); // Fermer le polygone
+          mercVerts.push(mercVerts[0]);
           olFeature = new ol.Feature({
             geometry: new ol.geom.Polygon([mercVerts]),
             featureType: "imported",
@@ -4560,7 +4642,7 @@ function parseDXFEntity(type, lines, startI) {
 
       case "CIRCLE": {
         // Approximation du cercle par 64 points
-        const center = dxfCoordsToMerc(x, y);
+        const center = dxfCoordsToMerc(x, y, srcProjection);
         const circlePoints = [];
         for (let a = 0; a <= 360; a += 360 / 64) {
           const rad = a * Math.PI / 180;
@@ -4596,13 +4678,16 @@ function parseDXFEntity(type, lines, startI) {
  * @param {number} y - Latitude ou Nord
  * @returns {{ x: number, y: number }} Coordonnées EPSG:3857
  */
-function dxfCoordsToMerc(x, y) {
-  // Détection automatique : si x dans [-180, 180] et y dans [-90, 90] → WGS84
-  if (x >= -180 && x <= 180 && y >= -90 && y <= 90) {
-    return wgs84ToMercator(x, y);
+function dxfCoordsToMerc(x, y, srcProjection = "EPSG:4326") {
+  try {
+    const [mx, my] = proj4(srcProjection, "EPSG:3857", [x, y]);
+    return { x: mx, y: my };
+  } catch (e) {
+    if (x >= -180 && x <= 180 && y >= -90 && y <= 90) {
+      return wgs84ToMercator(x, y);
+    }
+    return { x, y };
   }
-  // Sinon, supposer Mercator direct (cas rares)
-  return { x, y };
 }
 
 // ============================================================
@@ -5114,12 +5199,12 @@ function geometryToDXF(geom, layer, outProjection) {
 // ---- Générateurs d'entités DXF ----
 
 function dxfPoint(x, y, layer) {
-  return `0\nPOINT\n8\n${layer}\n10\n${x.toFixed(6)}\n20\n${y.toFixed(6)}\n30\n0.0\n`;
+  return `0\nPOINT\n100\nAcDbEntity\n8\n${layer}\n100\nAcDbPoint\n10\n${x.toFixed(6)}\n20\n${y.toFixed(6)}\n30\n0.0\n`;
 }
 
 function dxfLWPolyline(coords, closed, layer) {
   const flag = closed ? 1 : 0;
-  let entity = `0\nLWPOLYLINE\n8\n${layer}\n90\n${coords.length}\n70\n${flag}\n`;
+  let entity = `0\nLWPOLYLINE\n100\nAcDbEntity\n8\n${layer}\n100\nAcDbPolyline\n90\n${coords.length}\n70\n${flag}\n`;
   coords.forEach(([x, y]) => {
     entity += `10\n${x.toFixed(6)}\n20\n${y.toFixed(6)}\n`;
   });
@@ -5127,24 +5212,28 @@ function dxfLWPolyline(coords, closed, layer) {
 }
 
 /**
- * Assemble le fichier DXF complet.
+ * Assemble le fichier DXF complet (AC1015 / R2000).
  *
  * @param {Set<string>} layers   - Noms des layers
  * @param {string[]}    entities - Blocs d'entités
  * @returns {string}
  */
 function buildDXFFile(layers, entities) {
-  // En-tête DXF minimal
   let dxf = `0\nSECTION\n2\nHEADER\n9\n$ACADVER\n1\nAC1015\n0\nENDSEC\n`;
 
-  // Section TABLES (layers)
-  dxf += `0\nSECTION\n2\nTABLES\n0\nTABLE\n2\nLAYER\n70\n${layers.size}\n`;
+  // TABLES : LTYPE (obligatoire) puis LAYER
+  dxf += `0\nSECTION\n2\nTABLES\n`;
+  dxf += `0\nTABLE\n2\nLTYPE\n70\n1\n`;
+  dxf += `0\nLTYPE\n2\nCONTINUOUS\n70\n0\n3\nSolid line\n72\n65\n73\n0\n40\n0.0\n`;
+  dxf += `0\nENDTAB\n`;
+  dxf += `0\nTABLE\n2\nLAYER\n70\n${layers.size}\n`;
   layers.forEach(name => {
-    dxf += `0\nLAYER\n2\n${name}\n70\n0\n62\n7\n6\nCONTINUOUS\n`;
+    dxf += `0\nLAYER\n100\nAcDbSymbolTableRecord\n100\nAcDbLayerTableRecord\n2\n${name}\n70\n0\n62\n7\n6\nCONTINUOUS\n`;
   });
-  dxf += `0\nENDTAB\n0\nENDSEC\n`;
+  dxf += `0\nENDTAB\n`;
+  dxf += `0\nENDSEC\n`;
 
-  // Section ENTITIES
+  // ENTITIES
   dxf += `0\nSECTION\n2\nENTITIES\n`;
   entities.forEach(e => { dxf += e; });
   dxf += `0\nENDSEC\n0\nEOF\n`;
